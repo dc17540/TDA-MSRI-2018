@@ -1,0 +1,160 @@
+---
+title: "Clustering Our data set"
+author: "Esteban Escobar"
+date: "7/5/2018"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+
+
+
+
+
+
+
+
+
+library(igraph)
+library(scales)
+library(graphics)
+library(ggplot2)
+library(cluster)
+library(fpc)
+
+set.seed(101)
+
+
+  fit <- kmeans(myfiles, 3, nstart = 25)
+  # aggregate(myfiles, by=list(fit$cluster), FUN = mean)
+  # dataset1 <- data.frame(myfiles, fit$cluster)
+  
+
+  
+
+  
+  
+```
+
+```{r}
+
+# Hierarchical clustering
+
+HierClus <- function(dataset){
+  d <- dist(dataset, method ="euclidean")
+  fit < - hclust(d, method = "ward")
+  plot(fit)
+  
+  groups <- cutree(fit, k = 3)
+   y = rect.hclust(fit,k = 3, gorder = "red")
+  
+
+  return(y)
+}
+  
+```
+
+
+```{r}
+# Ward Hierarchical Clustering with Bootstrapped p values 
+library(pvclust)
+
+WHCBoot <- function(dataset){
+  fit <- pvclust(dataset, method.hclust = "ward", method.dist = "euclidean")
+  plot(fit)
+  
+  y = pvrect(fit, alpha =.95)
+  return(y)
+}
+
+
+
+```
+
+```{r}
+# DBSCAN: Density-Based Clustering Essentials 
+library(pvclust)
+library(fpc)
+library(dbscan)
+library(factoextra)
+
+
+
+
+
+
+  db <- fpc::dbscan(, eps = 0.15)
+  
+  fviz_cluster(db, data = pts, stand = F, ellipse = F, show.clust.cent = F, geom = "point", palette = "jco", ggtheme = theme_classic())
+  print(db)
+
+  
+}
+```
+
+```{r}
+
+# Hierarchical clustering
+
+KnearNei <- function(dataset){
+  
+
+}
+  
+```
+
+
+
+```{r}
+
+Mydata <- read.csv(file = "/Users/Esteban/Desktop/Persistence_CSVs/New\ Folder\ With\ Items/A00001.txt.csv", header = T)  
+Mydata <- Mydata[,-1]
+
+mat <- as.matrix(Mydata)
+
+d <-data.frame(mat)
+
+
+
+
+
+temp = list.files(pattern = "*.csv")
+myfiles = lapply(temp,read.csv)
+
+
+vec <- vector("list",600)
+for (i in 1:length(temp)){
+  fileName =paste("/Users/Esteban/Desktop/Persistence_CSVs/New\ Folder\ With\ Items/",temp[i], sep = "")
+  Dataset <- read.csv(fileName, header = T)
+  Dataset <- Dataset[,-1]
+  vec[i] <- Dataset
+}
+
+for(i in myfiles){
+  append(vec, i[3])
+}
+
+
+
+
+
+
+
+
+
+```
+
+```{r}
+
+
+
+
+
+
+
+
+
+```
+
