@@ -33,6 +33,7 @@ def setWindow(aStep,aListOfVals):
     return(theFinList)   
 
 def makePersistDiagram(theDimension,numOfSec,ID,Path,Step):
+    theString = ""
     theX = []
     diagramss = ""
     #get the timeseries to the number of seconds
@@ -52,8 +53,17 @@ def makePersistDiagram(theDimension,numOfSec,ID,Path,Step):
         theFinData = theData.reshape(len(theData)//theDimension,theDimension)
         #print(theFinData)
         #use ripser and plot
-        diagramsss = ripser(theFinData,theDimension)['dgms']
-        plot_dgms(diagramss, show=True,save ="ID"+".jpg")
+        diagramss = ripser(theFinData,theDimension)['dgms']
+        #plot_dgms(diagramss, show=True,save ="ID"+".jpg")
+
+        x = open(ID + ".txt")
+	for i in range(diagramss):
+            theString = i + " dim" + '\n' 
+            x.write(theString)
+            for j in range(diagramss[i]):
+                theString = str(diagrams[i][j][0]) + ' ' + str(diagrams[i][j][1]) 
+                x.write(theString)
+        x.close()
 
 #rint(type(makePersistDiagram(50,3200,"A07872",'/home/dr-dunstan/Downloads/training2017/')))
 
@@ -77,7 +87,7 @@ def makeDiaFromCSV(dataType):
                 #create plot diagram with ID at that line
                 theSamp = wfdb.rdsamp("/home/dr-dunstan/Downloads/training2017/" + b)
                 theData = len(theSamp[0])
-                makePersistDiagram(2,theData,b,'/home/dr-dunstan/Downloads/training2017/')
+                makePersistDiagram(8,theData,b,'/home/dr-dunstan/Downloads/training2017/',10)
             lineSkip += 1
 #same with af & random
     elif(dataType == "AF"):
@@ -87,13 +97,7 @@ def makeDiaFromCSV(dataType):
             if(lineSkip != 0):
                 theSamp = wfdb.rdsamp("/home/dr-dunstan/Downloads/training2017/" + c)
                 theData = len(theSamp[0])
-                theSamp2 = wfdb.rdsamp("/home/dr-dunstan/Downloads/training2017/" + b)
-                theData2 = len(theSamp[0])
-                theSamp3 = wfdb.rdsamp("/home/dr-dunstan/Downloads/training2017/" + d)
-                theData3 = len(theSamp[0])
-                makePersistDiagram(10,theData,c,'/home/dr-dunstan/Downloads/training2017/',5)
-		makePersistDiagram(10,theData2,b,'/home/dr-dunstan/Downloads/training2017/',5)
-		makePersistDiagram(10,theData3,d,'/home/dr-dunstan/Downloads/training2017/',5)
+                makePersistDiagram(8,theData,c,'/home/dr-dunstan/Downloads/training2017/',10)
             lineSkip += 1
     elif(dataType == "Random"):
         for line in theCSV:
@@ -102,18 +106,12 @@ def makeDiaFromCSV(dataType):
             if(lineSkip != 0):
                 theSamp = wfdb.rdsamp("/home/dr-dunstan/Downloads/training2017/"+ d)
                 theData = len(theSamp[0])
-                makePersistDiagram(2,theData,d,'/home/dr-dunstan/Downloads/training2017/')
+                makePersistDiagram(8,theData,d,'/home/dr-dunstan/Downloads/training2017/',10)
             lineSkip += 1
     else:
         print("Datatype dosent exsit")
 
 
-if __name__ == '__main__':
-    jobs = []
-    for i in range(10):
-        p = mp.Process(target=makeDiaFromCSV, args=("AF"))
-        jobs.append(p)
-        p.start()
-
-
-#makeDiaFromCSV("Normal")
+makeDiaFromCSV("Normal")
+makeDiaFromCSV("AF")
+makeDiaFromCSV("Random")
