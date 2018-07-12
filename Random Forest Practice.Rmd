@@ -1,0 +1,181 @@
+---
+title: "Random Forest Practice"
+author: "Esteban Escobar"
+date: "7/10/2018"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(MASS) # Package which contains the Boston Houseing Dataset 
+library(randomForest)
+
+set.seed(123)
+
+#The birthwt data frame has 189 rows and 10 columns. The data were collected at Baystate Medical Center, Springfield, Mass during 1986.
+DataFrame <- birthwt
+
+# Check the number of unique values 
+# apply(DataFrame, 2, function(x) round(length(unique(x))/nrow(DataFrame)))
+
+apply(DataFrame, 2, function(x) length(unique(x)))
+hist(DataFrame$age)
+# it seems that low, race, smoke, ptl, ht, ui, and ftv are 
+#categorical variables so we need to convert them into the categorical 
+
+# for categorical: use as.factor[A split on a factor with N levels ]
+
+# for numberical data, numberical variables are sorted and then best split 
+# to minmize gini impurity or entropy 
+
+cols <- c("low", "race", "smoke", "ptl", "ht", "ui", "ftv")
+
+for(i in cols){
+  DataFrame[,i] = as.factor(DataFrame[,i])
+  
+}
+str(DataFrame)
+
+
+# lets creat the train and test data set 
+library(caTools)
+# target variable is low 
+# splitRatio mean that in the train data fram has 70% of the rules and test data has 30% of those so you can see here train data frame 132 observation goes to the fram data and 57 observation goes thorught the testing 
+
+## you must have read before what is a decision tree and you must know before really random forest who you should go to of the some basis of decision tree classifier 
+ind <- sample.split(Y = DataFrame$low, SplitRatio = 0.7)
+trainDF<- DataFrame[ind,]
+testDF <- DataFrame[ind,]
+
+
+# DECISION TREE CLASSIFER: we make a split on each of the variable in order to predict the target value and again it also treats random factor variable categorical data a numerical data differently a numberical  
+
+
+# high Strength of tree = low error rate of individual tree classifier 
+
+# random forst is like a forest of deciion tree  
+
+modelRandom <- randomForest(low~., data = trainDF, mtry = 3, ntree = 20)
+
+modelRandom
+
+# Forest error rat 
+# OOB(out of bag rate)(misclassification rate)
+# Each tree is tested on 1/3rd of the no. the observations 
+#not used in building the tree
+
+#1. high strength of tree will have lower error[depends on mytry]
+# 2. high correlation between  trees increases the error [depends on mytry]
+
+
+# plotting the importanc eof each variables 
+# mean decrease accuracy = how much of the model accuracy decreases 
+# if we drop the variable 
+# high value of mean decrease accurcy or mean decrease gini score # higher the imporatn of the variable in the model 
+
+importance(modelRandom)
+varImpPlot(modelRandom)
+
+# predictions 
+
+predictionwithClass <- predict(modelRandom, testDF, type = "class")
+predictionwithClass
+
+t <- table(predictions = predictionwithClass, actual = testDF$low)
+
+t
+
+
+# ACCURACY matric 
+
+sum(diag(t))/sum(t)
+
+# plotting ROC curve and calculating AUC metric 
+
+library(pROC)
+
+PredictionWithProbs <- predict(modelRandom, testDF, type = "prob")
+auc <- auc(testDF$low, PredictionWithProbs[,2])
+plot(roc(testDF$low, PredictionWithProbs[,2]))
+
+
+# to find the best mtry 
+
+bestmtry <- tuneRF(trainDF, trainDF$low, ntreeTry = 200, stepFactor = 1.2, improve = 0.01, trace = T, plot = T)
+
+bestmtry
+
+
+
+
+
+```
+
+
+DECISION TREES IN R FOR CLASSIFICATION 
+1. Decistion tree 
+
+```{r}
+# decistion tree 
+library(rpart)
+library(rpart.plot) 
+
+s <- sample(150, 100)
+
+iris_train <- iris[s,]
+iris_test <- iris[-s,]
+
+dtm <- rpart(Species~., iris_train, method = "class")
+
+plot(dtm)
+text(dtm)
+
+rpart.plot(dtm, type = 4, extra = 101)
+
+ p <- predict(dtm, iris_test, type = "class")
+
+ table(iris_test[,5], p)
+
+
+
+
+
+```
+
+Another example of Random Forest 
+```{r}
+attach(Boston)
+set.seed(101)
+
+dim(Boston)
+
+#training Sample with 300 obersvations 
+
+train = sample(1:nrow(Boston), 300)
+
+# we are going to use variable 'medv' as the Response variable, which is the Meian Housing Value. We will fit 500 Trees (medv is one of the things in Boston)
+
+
+```
+Fitting the Random Forest 
+
+```{r}
+# We will use all the Predictors in the dataset
+
+Boston.rf = randomForest(medv~., data = Boston, subset = train)
+
+Boston.rf
+
+#The above mean Squared Error and Variance explained are calculated using Out of Bag Error Estimation. In this (number) of Training Data is used for training and the remaining (number) is used to Validate the Trees. Also, the number of variables randomly selected at each split is 4
+
+
+# plotting teh Error vs Number of Tree Graph 
+
+plot(Boston.rf)
+
+
+
+
+```
+
