@@ -1,0 +1,109 @@
+---
+title: "Weight_and_Cluster"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(igraph)
+library(TDA)
+library(pvclust)
+library(factoextra)
+library(fpc)
+```
+
+## Weight and Cluster.
+Here we weight out matrix and cluster it.
+
+```{r}
+
+temp <- as.matrix(read.csv("/Users/Luke/Desktop/githubstuff/200_set_of_Norm_AF_Rand.csv"))
+                   
+L <- list()
+
+for(i in seq(length(temp))){
+  Mydata <- read.csv(file = paste("/Users/Luke/Desktop/github/", temp[i], sep = ""), header = T)
+  Mydata <- Mydata[,-1]
+  Mydata <- as.matrix(Mydata)
+  
+  L <- append(L, assign(paste("var", i, sep = "."), Mydata))
+}
+```
+
+
+Given a directory containing the CSV files of persistence diagrams, the function below creates new variables and stores matrices containing the persistence diagrams in these new variables. It then stores these persistence diagrmas into a 
+```{r}
+read_Persistence <- function(directory, tempor){
+directory <-"/Users/Luke/Desktop/github/"
+tempor <- temp
+
+  labelss <- c()
+  #temp <- list.files(directory, pattern = "*.csv")
+  for(i in seq(length(tempor))){
+    print(i)
+    assign(paste0("persistence", i), as.matrix(read.csv(file = paste0(directory, tempor[i], ".csv")), header = T)) # Not recording properly in function, but will outside a function
+      labelss <- append(labelss, paste("persistence", i, sep = "_"))
+  }
+  return(labelss)
+}
+```
+
+
+# HARD CODE OF ABOVE FUNCTION, REDO LATER FOR EFFICIENCY
+```{r}
+#read_Persistence <- function(directory, tempor){
+directory <-"/Users/Luke/Desktop/github/"
+tempor <- temp
+
+  labelss <- c()
+  #temp <- list.files(directory, pattern = "*.csv")
+  for(i in seq(length(tempor))){
+    print(i)
+    assign(paste0("persistence", i), as.matrix(read.csv(file = paste0(directory, tempor[i], ".csv")), header = T)[,-1])
+      labelss <- append(labelss, paste("persistence", i, sep = "_"))
+  }
+#  return(labelss)
+#}
+```
+
+The output of the last function was a list containing strings, where the strings were the file names of the stored variables containing the data of the persistence diagrms.
+
+```{r}
+read_Persistence_v2 <- function(directory, tempor){
+
+
+  labelss <- c()
+  #temp <- list.files(directory, pattern = "*.csv")
+  for(i in seq(length(tempor))){
+    print(i)
+    assign(paste0("persistence", i), as.matrix(read.csv(file = paste0(directory, tempor[i], ".csv")), header = T))
+      labelss <- append(labelss, paste("persistence", i, sep = "_"))
+  }
+}
+directory <-"/Users/Luke/Desktop/github/"
+tempor <- temp
+read_Persistence_v2(directory, tempor)
+```
+
+```{r}
+l <- length(temp)
+
+Compute_N_Weight_Matrix <- function(n){
+
+  assign(paste0("Weight_", n),matrix(0, nrow = l, ncol = l))
+  Weight= matrix(0, l,l)
+  for(i in seq(l)){
+    for(j in seq(from=i, to=(l))){
+      if( 0< i & i <= 100){
+      # print(ncol(as.name(paste("var", i, sep="."))))
+          entry <- bottleneck(get(paste("persistence", i, sep="")), get(paste("persistence", j, sep="")), dimension = n)
+        Weight[i,j] <- entry
+        Weight[j,i] <- entry
+      }
+    }
+  }
+  return(assign(paste0("Weight2_", n), Weight))
+}
+```
