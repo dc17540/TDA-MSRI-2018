@@ -1,0 +1,56 @@
+---
+title: "Reducing Pres Diag"
+author: "Esteban Escobar"
+date: "7/12/2018"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(igraph)
+library(scales)
+library(stats)
+library(fpc)
+library(dbscan)
+library(factoextra)
+library(ggplot2)
+
+temp <- list.files(pattern = ".csv")
+
+x <- read.csv(file = paste("/Users/Esteban/Desktop/GitHub/TDA-MSRI-2018/600_Persistence_Diagrams/", temp[1], sep = ""), header = T)
+
+
+L <- list()
+
+for( i in length(temp)){
+  Mydata <- read.csv(file = paste("/Users/Esteban/Desktop/GitHub/TDA-MSRI-2018/600_Persistence_Diagrams/", temp[i], sep = ""), header = T)
+  
+  Mydata <- Mydata[,-1]
+  
+  for(j in 0:max(Mydata[,1])){
+    M = Mydata[ Mydata[,1] == j, ]
+    if(j == 0){
+      M = M[-nrow(M),]
+      X <- kmeans( M, round( (.10)*nrow(M) ) , nstart = 25 )
+    }
+    
+    if(j == 1){
+      Y <- hclust(M, method = "average")
+    }
+    if(j ==2){
+      Z <- hclust(M,method = "average")
+    }
+    
+    
+
+  }
+  
+}
+
+
+
+
+
+```
+
