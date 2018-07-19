@@ -1,0 +1,90 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+Let's import the weight matrices
+```{r}
+temp <- as.matrix(read.csv("/Users/Luke/Desktop/github/TDA-MSRI-2018/200_set_of_Norm_AF_Rand.csv", header = T)) 
+```
+
+
+```{r}
+R50_w_dim0 <- as.matrix(read.csv("/Users/Luke/Desktop/R50_bottleneck_dim0.csv"))[,-1]
+R60_w_dim1 <- as.matrix(read.csv("/Users/Luke/Desktop/R50_bottleneck_dim1.csv"))[,-1]
+R60_w_dim1 <- as.matrix(read.csv("/Users/Luke/Desktop/R50_bottleneck_dim2.csv"))[,-1]
+```
+Average and standard deviation across rows
+```{r}
+#Mean, sd across rows for 0 dimensional matrix.
+mean_bottle_dim_0 <- c()
+for(i in seq(length(R50_w_dim0[,1]))){
+  mean_bottle_dim_0 <- append(mean_bottle_dim_0, mean(R50_w_dim0[,i])) 
+}
+ 
+sd_bottle_dim_0 <- c()
+for(i in seq(length(R50_w_dim0[,1]))){
+  sd_bottle_dim_0 <- append(sd_bottle_dim_0, sd(R50_w_dim0[,i]))
+}
+ 
+#Mean, sd across rows for 1 dimensional matrix.
+
+mean_bottle_dim_1 <- c()
+for(i in seq(length(R50_w_dim0[,1]))){
+  mean_bottle_dim_1 <- append(mean_bottle_dim_1, mean(R50_w_dim1[,i])) 
+}
+
+sd_bottle_dim_1 <- c()
+for(i in seq(length(R50_w_dim1[,1]))){
+  sd_bottle_dim_1 <- append(sd_bottle_dim_1, sd(R50_w_dim1[,i]))
+}
+ 
+#Mean, sd across rows for 2 dimensional matrix.
+
+mean_bottle_dim_2 <- c()
+for(i in seq(length(R50_w_dim0[,1]))){
+  mean_bottle_dim_2 <- append(mean_bottle_dim_2, mean(R50_w_dim2[,i])) 
+}
+
+sd_bottle_dim_2 <- c()
+for(i in seq(length(R50_w_dim1[,1]))){
+  sd_bottle_dim_2 <- append(sd_bottle_dim_2, sd(R50_w_dim2[,i]))
+}
+```
+Number of birth, death points
+```{r}
+number_births_dim0 <- c()
+for(i in seq(temp)){
+  number_births_dim0 <- append(number_births_dim0, length(get(paste0("pers_", i, "_zeros_birth"))))
+}
+
+number_births_dim1 <- c()
+for(i in seq(temp)){
+  number_births_dim1 <- append(number_births_dim1, length(get(paste0("pers_", i, "_ones_birth"))))
+}
+
+number_births_dim2 <- c()
+for(i in seq(temp)){
+  number_births_dim2 <- append(number_births_dim2, length(get(paste0("pers_", i, "_twos_birth"))))
+}
+
+```
+
+Put data into CSVs.
+```{r}
+dist_dim0_data <- data.frame("avg_bottle_dist_dim0" = mean_bottle_dim_0, "sd_bottle_dist_dim0" = sd_bottle_dim_0)
+
+dist_dim1_data <- data.frame("avg_bottle_dist_dim0" = mean_bottle_dim_0, "sd_bottle_dist_dim0" = sd_bottle_dim_0)
+
+dist_dim2_data <- data.frame("avg_bottle_dist_dim0" = mean_bottle_dim_0, "sd_bottle_dist_dim0" = sd_bottle_dim_0)
+
+write.csv(dist_dim0_data, file = "bottleneck_avg_sd_dist_dim0.csv")
+write.csv(dist_dim1_data, file = "bottleneck_avg_sd_dist_dim1.csv")
+write.csv(dist_dim2_data, file = "bottleneck_avg_sd_dist_dim2.csv")
+```
+
+```{r}
+write.csv(number_births_dim0, file = "number_of_births_deaths_dim0.csv")
+write.csv(number_births_dim1, file = "number_of_births_deaths_dim1.csv")
+write.csv(number_births_dim2, file = "number_of_births_deaths_dim2.csv")
+
+```
