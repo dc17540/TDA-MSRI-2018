@@ -15,42 +15,96 @@ library(fpc)
 library(dbscan)
 library(factoextra)
 library(ggplot2)
+library(MASS)
 
 temp <- list.files(pattern = ".csv")
 
-x <- read.csv(file = paste("/Users/Esteban/Desktop/GitHub/TDA-MSRI-2018/600_Persistence_Diagrams/", temp[1], sep = ""), header = T)
+# x <- read.csv(file = paste("/Users/Esteban/Desktop/GitHub/TDA-MSRI-2018/600_Persistence_Diagrams/", temp[1], sep = ""), header = T)
 
 
-L <- list()
 
-for( i in length(temp)){
+for( i in 1:length(temp)){
+  # print(i)
+  Perstpointall = matrix(0,1,3)
   Mydata <- read.csv(file = paste("/Users/Esteban/Desktop/GitHub/TDA-MSRI-2018/600_Persistence_Diagrams/", temp[i], sep = ""), header = T)
-  
   Mydata <- Mydata[,-1]
-  
+  PerstPoints12 <- matrix(0,1,3)
   for(j in 0:max(Mydata[,1])){
+    # print(j)
+    
     M = Mydata[ Mydata[,1] == j, ]
+    
     if(j == 0){
       M = M[-nrow(M),]
-      X <- kmeans( M, round( (.10)*nrow(M) ) , nstart = 25 )
-    }
-    
-    if(j == 1){
-      Y <- hclust(M, method = "average")
-    }
-    if(j ==2){
-      Z <- hclust(M,method = "average")
-    }
-    
-    
+      M <- as.matrix(M) 
+      histrgram <- hist(M, plot = F)
+      breaks <- histrgram$breaks
+     q <-  breaks[length(breaks)-1]
+      matx_0 <- which( (M[,3] - M[,2]) >= q )
+      
+      PerstPoints <- M[matx_0, -1]
+      
+      restofpoints <- as.matrix(M[-matx_0, -1 ])
+      
+      cluster <- kmeans(restofpoints, centers = round(.10*nrow(restofpoints)), nstart = 25 )
 
+      
+      for( k in 1:round(.10*nrow(restofpoints)) ){
+        meanofpoints <- c(mean(restofpoints[ which(cluster$cluster == k), 1 ]), mean(restofpoints[ which(cluster$cluster == k), 2 ])  )
+        PerstPoints <- rbind(PerstPoints, meanofpoints)
+      }
+      rownames(PerstPoints) = NULL
+      PerstPoints = cbind( matrix(0,nrow(PerstPoints), 1), PerstPoints)
+    }
+    else{
+      M <- as.matrix(M)
+      histrgram1 <- hist(M[,3]-M[,2],plot = F )
+      
+      breaks1 <- histrgram1$breaks
+      q1 <-  breaks1[length(breaks1)-1]
+      matx_12 <- which( (M[,3] - M[,2]) >= q1 )
+      
+      PerstPoints1 <- M[matx_12, -1]
+      
+      restofpoints1 <- as.matrix(M[-matx_12, -1 ], byrow = T )
+      if(length(restofpoints1)  == 2 ){
+        restofpoints1 = t(restofpoints1)
+      }
+      
+      if( nrow(restofpoints1) > 50  ){
+      cluster1 <- kmeans(restofpoints1, centers = round(.10*nrow(restofpoints1)), nstart = 25 )
+  
+      for( l in 1:round(.10*nrow(restofpoints1)) ){
+        meanofpoints1 <- c( mean(restofpoints1[ which(cluster1$cluster == l), 1 ]), mean(restofpoints1[ which(cluster1$cluster == l), 2 ])  )
+       PerstPoints1 <- rbind(PerstPoints1, meanofpoints1)
+       # PerstPoints1 <- cbind(matrix(j, nrow(PerstPoints1),1),PerstPoints1 )
+      }
+      
+     rownames(PerstPoints1) = NULL
+     PerstPoints12 <- rbind(PerstPoints12,cbind(matrix(j, nrow(PerstPoints1),1),PerstPoints1 ))
+      }
+      else{
+        
+        PerstPoints12 <- rbind(PerstPoints12,cbind(matrix(j,nrow(restofpoints1),1),restofpoints1))
+      }
+      }
+  
   }
+  Perstpointall <- rbind(PerstPoints, PerstPoints12[-1,])
+  owd = getwd()
+  setwd("/Users/Esteban/Desktop/Perstdiagram_reduction")
+  write.csv(Perstpointall, paste("perstdiag", temp[i]), sep = "")
+  setwd(owd)
   
 }
+```
 
-
+```{r}
 
 
 
 ```
+
+
+
 
