@@ -1,0 +1,578 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+temp <- as.matrix(read.csv("/Users/Luke/Desktop/github/TDA-MSRI-2018/200_set_of_Norm_AF_Rand.csv", header = T)) 
+##DONT FORGET TO DELETE THE FIRST COLUMN!!! Not done here because it is already gone. 
+
+directory <-"/Users/Luke/Desktop/github/TDA-MSRI-2018/Perstdiagram_reduction/"
+
+for(i in seq(length(temp))){
+  assign(paste0("persistence", i), as.matrix(read.csv(file = paste0(directory, "perstdiag ", temp[i], ".csv")), header = T)[,-1])
+  }
+```
+
+```{r}
+#Prints the number of 0, 1 and 2 dimensional features in a vector.
+zeros<-0
+ones<-0
+twos<-0
+
+Counting_Dimensions <- function(n) {
+  tempFrame <- data.frame("Dimension" = get(paste0("persistence", n))[,1], "Birth" = get(paste0("persistence", n))[,2], get(paste0("persistence", n))[,3])  
+  return(table(tempFrame$Dimension))
+}
+```
+
+```{r}
+#############################
+
+compute_zeros_birth <- function(n,a){
+  L <- c()
+  for(i in seq(a)){
+   L <- append(L , get(paste0("persistence", n))[i,2])
+  }
+  return(L)
+}
+
+compute_zeros_death <- function(n,a){
+  L <- c()
+  for(i in seq(a)){
+   L <- append(L , get(paste0("persistence", n))[i,3])
+  }
+  return(L)
+}
+###############################  
+compute_ones_birth <- function(n,a,b){
+  L <- c()
+  for(i in seq(from=a+1, to=a+b)){
+   L <- append(L , get(paste0("persistence", n))[i,2])
+  }
+  return(L)
+}
+
+compute_ones_death <- function(n,a,b){
+  L <- c()
+  for(i in seq(from=a+1, to=a+b)){
+   L <- append(L , get(paste0("persistence", n))[i,3])
+  }
+  return(L)
+}
+#################
+compute_twos_birth <- function(n,a,b,c){
+  L <- c()
+  for(i in seq(from=a+b+1, to=a+b+c)){
+  L <- append(L , get(paste0("persistence", n))[i,2])
+  }
+  return(L)
+} 
+
+
+compute_twos_death <- function(n,a,b,c){
+  L <- c()
+  for(i in seq(from=a+b+1, to=a+b+c)){
+  L <- append(L , get(paste0("persistence", n))[i,3])
+  }
+  return(L)
+} 
+  
+```
+
+##Extacts birth, death times for each dimension
+```{r}
+
+Extract_Birth_Zeros <- function(n){ #n is desired dimension
+    p <- c()
+    a <- Counting_Dimensions(n)[1]
+    #b <- Counting_Dimensions(n)[2]
+    #c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth variables.
+    assign(paste0("pers_", n, "_zeros_birth"), compute_zeros_birth(n,a))
+    p <- append(p, get(paste0("pers_", n, "_zeros_birth")))
+    return(p)
+}
+
+Extract_Death_Zeros <- function(n){ #n is desired dimension
+    p <- c()
+    a <- Counting_Dimensions(n)[1]
+    #b <- Counting_Dimensions(n)[2]
+    #c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth and death variables
+    assign(paste0("pers_", n, "_zeros_death"), compute_zeros_death(n,a))
+    p <- append(p, get(paste0("pers_", n, "_zeros_death")))
+    return(p)
+    # k <- 0
+    # assign(k, compute_zeros_death(n,a))
+    # return(k)
+}
+
+Extract_Birth_Ones <- function(n){ #n is desired dimension
+    p<- c()
+    a <- Counting_Dimensions(n)[1]
+    b <- Counting_Dimensions(n)[2]
+    #c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth and death variables.
+    assign(paste0("pers_", n, "_ones_birth"), compute_ones_birth(n,a,b)) 
+    p <- append(p, get(paste0("pers_", n, "_ones_birth")))
+    return(p)
+}
+
+Extract_Death_Ones <- function(n){ #n is desired dimension
+    p<- c()
+    a <- Counting_Dimensions(n)[1]
+    b <- Counting_Dimensions(n)[2]
+    #c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth and death variables.
+    assign(paste0("pers_", n, "_ones_death"), compute_ones_death(n,a,b)) 
+    p <- append(p, get(paste0("pers_", n, "_ones_death")))
+    return(p)
+}
+
+Extract_Birth_Twos <- function(n){ #n is desired dimension
+    p<-c()
+    a <- Counting_Dimensions(n)[1]
+    b <- Counting_Dimensions(n)[2]
+    c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth variables.
+    assign(paste0("pers_", n, "_twos_birth"), compute_twos_birth(n,a,b,c)) 
+    p <- append(p, get(paste0("pers_", n, "_twos_birth")))
+    return(p)    
+}
+Extract_Death_Twos <- function(n){ #n is desired dimension
+    p<-c()
+    a <- Counting_Dimensions(n)[1]
+    b <- Counting_Dimensions(n)[2]
+    c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth and death variables.
+    assign(paste0("pers_", n, "_twos_death"), compute_twos_death(n,a,b,c)) 
+    p <- append(p, get(paste0("pers_", n, "_twos_death")))
+    return(p)    
+}
+
+```
+##Systematically store all 1200 datasets
+
+##THIS WILL PRODUCE A SHITTON OF VARIABLES IN YOUR GLOBAL ENVIRONMENT
+```{r}
+#Stores pers_zeros_births
+for(i in seq(length(temp))){
+   assign(paste0("pers_", i, "_zeros_birth"), Extract_Birth_Zeros(i),envir=.GlobalEnv)
+}
+#Stores pers_zeros_deaths
+for(i in seq(length(temp))){
+   assign(paste0("pers_", i, "_zeros_death"), Extract_Death_Zeros(i),envir=.GlobalEnv)
+}
+#Stores pers_ones_births
+for(i in seq(length(temp))){
+   assign(paste0("pers_", i, "_ones_birth"), Extract_Birth_Ones(i),envir=.GlobalEnv)
+}
+#Stores pers_ones_deaths
+for(i in seq(length(temp))){
+   assign(paste0("pers_", i, "_ones_death"), Extract_Death_Ones(i),envir=.GlobalEnv)
+}
+#Stores pers_twos_births
+for(i in seq(length(temp))){
+  print(i)
+  assign(paste0("pers_", i, "_twos_birth"), Extract_Birth_Twos(i),envir=.GlobalEnv)
+}
+#Stores pers_twos_deaths
+for(i in seq(length(temp))){
+  print(i)
+  assign(paste0("pers_", i, "_twos_death"), Extract_Death_Twos(i),envir=.GlobalEnv)
+}
+```
+
+#Below is an alternative function that simply calculates and stored the distance values from the diagonal.
+```{r}
+Diag_Distances <- function(birth_pts, death_pts, thres){
+  p <- c()
+  for(i in seq(length(birth_pts))){
+    x <- birth_pts[i]
+    y <- death_pts[i]
+    #print(i)
+    d <- (abs(x-y)/sqrt(x^2 + y^2))
+    if(is.na(d) == FALSE & d <= thres){
+      p <- append(p, d)
+    }
+  }
+  return(p)
+}
+```
+#Store the different classes.
+```{r}
+#We'll put together 200 normals and store their averages across the first and second dimensions.
+Births_Normal_dim_0 <- c()
+Births_Normal_dim_1 <- c()
+Births_Normal_dim_2 <- c()
+
+for(i in seq(200)){
+  Births_Normal_dim_0 <- append(Births_Normal_dim_0, get(paste0("pers_", i, "_zeros_birth")))
+  
+  Births_Normal_dim_1 <- append(Births_Normal_dim_1, get(paste0("pers_", i, "_ones_birth")))
+
+  Births_Normal_dim_2 <- append(Births_Normal_dim_2,  get(paste0("pers_", i, "_twos_birth")))
+}
+
+Births_AF_dim_0 <- c()
+Births_AF_dim_1 <- c()
+Births_AF_dim_2 <- c()
+
+for(i in seq(from = 200, to = 400)){
+  Births_AF_dim_0 <- append(Births_AF_dim_0, get(paste0("pers_", i, "_zeros_birth")))
+  
+  Births_AF_dim_1 <- append(Births_AF_dim_1, get(paste0("pers_", i, "_ones_birth")))
+
+  Births_AF_dim_2 <- append(Births_AF_dim_2,  get(paste0("pers_", i, "_twos_birth")))
+}
+
+Births_Rand_dim_0 <- c()
+Births_Rand_dim_1 <- c()
+Births_Rand_dim_2 <- c()
+
+for(i in seq(from = 400, to = 600)){
+  Births_Rand_dim_0 <- append(Births_Rand_dim_0, get(paste0("pers_", i, "_zeros_birth")))
+
+  Births_Rand_dim_1 <- append(Births_Rand_dim_1, get(paste0("pers_", i, "_ones_birth")))
+
+  Births_Rand_dim_2 <- append(Births_Rand_dim_2,  get(paste0("pers_", i, "_twos_birth")))
+}
+
+```
+#Don't know if we need this code block below.
+```{r}
+#We'll put together 200 normals and store their averages across the first and second dimensions.
+Deaths_Normal_dim_0 <- c()
+Deaths_Normal_dim_1 <- c()
+Deaths_Normal_dim_2 <- c()
+
+for(i in seq(200)){
+  Deaths_Normal_dim_0 <- append(Deaths_Normal_dim_0, get(paste0("pers_", i, "_zeros_death")))
+  Deaths_Normal_dim_1 <- append(Deaths_Normal_dim_1, get(paste0("pers_", i, "_ones_death")))
+  Deaths_Normal_dim_2 <- append(Deaths_Normal_dim_2,  get(paste0("pers_", i, "_twos_death")))
+}
+
+Deaths_AF_dim_0 <- c()
+Deaths_AF_dim_1 <- c()
+Deaths_AF_dim_2 <- c()
+
+for(i in seq(from = 200, to = 400)){
+  Deaths_AF_dim_0 <- append(Deaths_AF_dim_0, get(paste0("pers_", i, "_zeros_death")))
+  Deaths_AF_dim_1 <- append(Deaths_AF_dim_1, get(paste0("pers_", i, "_ones_death")))
+  Deaths_AF_dim_2 <- append(Deaths_AF_dim_2,  get(paste0("pers_", i, "_twos_death")))
+}
+
+Deaths_Rand_dim_0 <- c()
+Deaths_Rand_dim_1 <- c()
+Deaths_Rand_dim_2 <- c()
+
+for(i in seq(from = 400, to = 600)){
+  Deaths_Rand_dim_0 <- append(Deaths_Rand_dim_0, get(paste0("pers_", i, "_zeros_death")))
+  Deaths_Rand_dim_1 <- append(Deaths_Rand_dim_1, get(paste0("pers_", i, "_ones_death")))
+  Deaths_Rand_dim_2 <- append(Deaths_Rand_dim_2,  get(paste0("pers_", i, "_twos_death")))
+}
+
+```
+#Evaluate how much shit we got 
+```{r}
+length(Births_Normal_dim_0)
+length(Deaths_Normal_dim_0)
+######
+length(Births_AF_dim_0)
+length(Deaths_AF_dim_0)
+######
+length(Births_Rand_dim_0)
+length(Deaths_Rand_dim_0)
+######
+```
+
+```{r}
+#Normal, AF, then random
+Mean_death_dim_0 <- Deaths_Normal_dim_0[1:(length(Deaths_Normal_dim_0)-1)] #Get rid of inf
+```
+
+#Store the averages, sd's.
+```{r}
+#We'll put together 200 normals and store their averages across the first and second dimensions.
+
+mean_Births_Normal_dim_1 <- c()
+mean_Births_Normal_dim_2 <- c()
+
+sd_Births_Normal_dim_1 <- c()
+sd_Births_Normal_dim_2 <- c()
+
+for(i in seq(200)){
+  mean_Births_Normal_dim_1 <- append(mean_Births_Normal_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+  mean_Births_Normal_dim_2 <- append(mean_Births_Normal_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+
+  if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+    sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+  }
+  else{
+    sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, 0)
+  }
+  
+  if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+    sd_Births_Normal_dim_2 <- append(sd_Births_Normal_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+  }
+  else{
+    sd_Births_Normal_dim_2 <- append(sd_Births_Normal_dim_2, 0)
+  }
+}
+
+mean_Births_AF_dim_1 <- c()
+mean_Births_AF_dim_2 <- c()
+
+sd_Births_AF_dim_1 <- c()
+sd_Births_AF_dim_2 <- c()
+
+for(i in seq(from = 201, to = 400)){
+  mean_Births_AF_dim_1 <- append(mean_Births_AF_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+  mean_Births_AF_dim_2 <- append(mean_Births_AF_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+  
+  if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+    sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+  }
+  else{
+    sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, 0)
+  }
+  if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+    sd_Births_AF_dim_2 <- append(sd_Births_AF_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+  }
+  else{
+    sd_Births_AF_dim_2 <- append(sd_Births_AF_dim_2, 0)
+  }
+}
+
+mean_Births_Rand_dim_1 <- c()
+mean_Births_Rand_dim_2 <- c()
+
+sd_Births_Rand_dim_1 <- c()
+sd_Births_Rand_dim_2 <- c()
+
+for(i in seq(from = 401, to = 600)){
+  mean_Births_Rand_dim_1 <- append(mean_Births_Rand_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+  mean_Births_Rand_dim_2 <- append(mean_Births_Rand_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+
+  if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+    sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+  }
+  else{
+    sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, 0)
+  }
+  
+  if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+    sd_Births_Rand_dim_2 <- append(sd_Births_Rand_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+  }
+  else{
+    sd_Births_Rand_dim_2 <- append(sd_Births_Rand_dim_2, 0)
+  }
+    
+}
+
+```
+#Don't know if we need this code block below.
+```{r}
+#We'll put together 200 normals and store their averages across the first and second dimensions.
+mean_Deaths_Normal_dim_0 <- c()
+mean_Deaths_Normal_dim_1 <- c()
+mean_Deaths_Normal_dim_2 <- c()
+
+sd_Deaths_Normal_dim_0 <- c()
+sd_Deaths_Normal_dim_1 <- c()
+sd_Deaths_Normal_dim_2 <- c()
+
+for(i in seq(200)){
+  mean_Deaths_Normal_dim_0 <- append(mean_Deaths_Normal_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_Normal_dim_1 <- append(mean_Deaths_Normal_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+  mean_Deaths_Normal_dim_2 <- append(mean_Deaths_Normal_dim_2, mean(get(paste0("pers_", i, "_twos_death"))))
+  
+  if(length(get(paste0("pers_", i, "_zeros_death")) != 1)){
+    sd_Deaths_Normal_dim_0 <- append(sd_Deaths_Normal_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_Normal_dim_0 <- append(sd_Deaths_Normal_dim_0, 0)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+    sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1, 0)
+  } 
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_Normal_dim_2 <- append(sd_Deaths_Normal_dim_2, sd(get(paste0("pers_", i, "_twos_death"))))
+  }
+  else{
+    sd_Deaths_Normal_dim_2 <- append(sd_Deaths_Normal_dim_2, 0)
+  }
+}
+
+mean_Deaths_AF_dim_0 <- c()
+mean_Deaths_AF_dim_1 <- c()
+mean_Deaths_AF_dim_2 <- c()
+
+sd_Deaths_AF_dim_0 <- c()
+sd_Deaths_AF_dim_1 <- c()
+sd_Deaths_AF_dim_2 <- c()
+
+for(i in seq(from = 201, to = 400)){
+  mean_Deaths_AF_dim_0 <- append(mean_Deaths_AF_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_AF_dim_1 <- append(mean_Deaths_AF_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+  mean_Deaths_AF_dim_2 <- append(mean_Deaths_AF_dim_2, mean(get(paste0("pers_", i, "_twos_death"))))
+  
+  if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+    sd_Deaths_AF_dim_0 <- append(sd_Deaths_AF_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_AF_dim_0 <- append(sd_Deaths_AF_dim_0, 0)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){  
+    sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    d_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, 0)
+  }
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_AF_dim_2 <- append(sd_Deaths_AF_dim_2, sd(get(paste0("pers_", i, "_twos_death"))))  
+  }
+  else{
+    sd_Deaths_AF_dim_2 <- append(sd_Deaths_AF_dim_2, 0)
+  }
+}  
+  
+mean_Deaths_Rand_dim_0 <- c()
+mean_Deaths_Rand_dim_1 <- c()
+mean_Deaths_Rand_dim_2 <- c()
+
+sd_Deaths_Rand_dim_0 <- c()
+sd_Deaths_Rand_dim_1 <- c()
+sd_Deaths_Rand_dim_2 <- c()
+
+for(i in seq(from = 401, to = 600)){
+  mean_Deaths_Rand_dim_0 <- append(mean_Deaths_Rand_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_Rand_dim_1 <- append(mean_Deaths_Rand_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+  mean_Deaths_Rand_dim_2 <- append(mean_Deaths_Rand_dim_2, mean(get(paste0("pers_", i, "_twos_death"))))
+  
+  if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){ 
+    sd_Deaths_Rand_dim_0 <- append(sd_Deaths_Rand_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_Rand_dim_0 <- append(sd_Deaths_Rand_dim_0, 0)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+  sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, 0)    
+  }
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_Rand_dim_2 <- append(sd_Deaths_Rand_dim_2, sd(get(paste0("pers_", i, "_twos_death")))) 
+  }
+  else{
+    sd_Deaths_Rand_dim_2 <- append(sd_Deaths_Rand_dim_2, 0)
+  }
+}
+
+```
+
+```{r}
+#dim0, births
+#Append the means, standard deviations. 
+total_means_births_dim0 <-seq(0,0,length.out=600)
+
+total_sd_births_dim0 <- seq(0,0,length.out=600)
+
+#dim0, deaths
+#Append the means, standard deviations
+total_means_deaths_dim0 <- append(append(mean_Deaths_Normal_dim_0, mean_Deaths_AF_dim_0), mean_Deaths_Rand_dim_0)
+
+total_sd_deaths_dim0 <- append(append(sd_Deaths_Normal_dim_0, sd_Deaths_AF_dim_0), sd_Deaths_Rand_dim_0)
+
+###################################################################
+
+#dim1, births
+#Append the means, standard deviations. 
+total_means_births_dim1 <- append(append(mean_Births_Normal_dim_1, mean_Births_AF_dim_1), mean_Births_Rand_dim_1)
+
+total_sd_births_dim1 <- append(append(sd_Births_Normal_dim_1, sd_Births_AF_dim_1), sd_Births_Rand_dim_1)
+
+#dim1, deaths
+#Append the means, standard deviations
+total_means_deaths_dim1 <- append(append(mean_Deaths_Normal_dim_1, mean_Deaths_AF_dim_1), mean_Deaths_Rand_dim_1)
+
+total_sd_deaths_dim1 <- append(append(sd_Deaths_Normal_dim_1, sd_Deaths_AF_dim_1), sd_Deaths_Rand_dim_1)
+
+###################################################################
+
+#dim2, births
+#Append the means, standard deviations. 
+total_means_births_dim2 <- append(append(mean_Births_Normal_dim_2, mean_Births_AF_dim_2), mean_Births_Rand_dim_2)
+
+total_sd_births_dim2 <- append(append(sd_Births_Normal_dim_2, sd_Births_AF_dim_2), sd_Births_Rand_dim_2)
+
+#dim2, deaths
+#Append the means, standard deviations
+total_means_deaths_dim2 <- append(append(mean_Deaths_Normal_dim_2, mean_Deaths_AF_dim_2), mean_Deaths_Rand_dim_2)
+
+total_sd_deaths_dim2 <- append(append(sd_Deaths_Normal_dim_2, sd_Deaths_AF_dim_2), sd_Deaths_Rand_dim_2)
+
+```
+##Organize data into dataframe, export into CSV.
+```{r}
+export_dim0 <- data.frame("Means_dim0_birth" = total_means_births_dim0, "Means_dim0_death" = total_means_deaths_dim0, "sd_dim0_birth" = total_sd_births_dim0, "sd_dim0_death" = total_sd_deaths_dim0)
+
+export_dim1 <- data.frame("Means_dim1_birth" = total_means_births_dim1, "Means_dim1_death" = total_means_deaths_dim1, "sd_dim1_birth" = total_sd_births_dim1, "sd_dim1_death" = total_sd_deaths_dim1)
+
+export_dim2 <- data.frame("Means_dim2_birth" = total_means_births_dim2, "Means_dim2_death" = total_means_deaths_dim2, "sd_dim2_birth" = total_sd_births_dim2, "sd_dim2_death" = total_sd_deaths_dim2)
+```
+
+```{r}
+write.csv(export_dim0, "Reduced_Pers_Mean_sd_dimension_0.csv")
+write.csv(export_dim1, "Reduced_Pers_Mean_sd_dimension_1.csv")
+write.csv(export_dim2, "Reduced_Pers_Mean_sd_dimension_2.csv")
+```
+##Calculating total lifetimes. 
+```{r}
+#Lifetimes for dimension 0
+lifetimes_dim0 <- c()
+for(i in seq(length(temp))){
+  lifetime <- sum(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)])
+  lifetimes_dim0 <- append(lifetimes_dim0, lifetime)
+}
+
+#Lifetimes for dimension 1.
+lifetimes_dim1 <- c()
+for(i in seq(length(temp))){
+  lifetime <- sum(get(paste0("pers_", i, "_ones_death"))) - sum(get((paste0("pers_", i, "_ones_birth"))))
+  lifetimes_dim1 <- append(lifetimes_dim1, lifetime)
+}
+
+#Lifetimes for dimension 2.
+lifetimes_dim2 <- c()
+for(i in seq(length(temp))){
+  lifetime <- sum((get(paste0("pers_", i, "_twos_death")))) - sum(get((paste0("pers_", i, "_twos_birth"))))
+  lifetimes_dim2 <- append(lifetimes_dim2, lifetime)
+}
+```
+#Convert to dataframe, export as CSV. 
+```{r}
+lifetimedata <- data.frame("Lifetime_dim0" = lifetimes_dim0, "Lifetime_dim1" = lifetimes_dim1, "Lifetime_dim2" = lifetimes_dim2)
+write.csv(lifetimedata, file = "Reduced_Pers_Lifetimes_dim_0_1_2.csv")
+```
+
+```{r}
+
+```
+

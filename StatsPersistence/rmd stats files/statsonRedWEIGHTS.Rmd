@@ -1,0 +1,106 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+Analyze new stats
+```{r}
+temp <- as.matrix(read.csv("/Users/Luke/Desktop/github/TDA-MSRI-2018/200_set_of_Norm_AF_Rand.csv", header = T)) 
+```
+
+```{r}
+red_dist0 <- as.matrix(read.csv("/Users/Luke/Desktop/Stats_Reduced/Dist_dim0.csv"))[,-1]
+red_dist1 <- as.matrix(read.csv("/Users/Luke/Desktop/Stats_Reduced/Dist_dim0.csv"))[,-1]
+red_dist2 <- as.matrix(read.csv("/Users/Luke/Desktop/Stats_Reduced/Dist_dim0.csv"))[,-1]
+
+red_dist0 <- red_dist0 + t(red_dist0)
+red_dist1 <- red_dist1 + t(red_dist1)
+red_dist2 <- red_dist2 + t(red_dist2)
+
+
+dist0 <- as.matrix(read.csv("/Users/Luke/Desktop/distance_matrices/R50_bottleneck_dim0.csv"))[,-1]
+dist1 <- as.matrix(read.csv("/Users/Luke/Desktop/distance_matrices/R50_bottleneck_dim1.csv"))[,-1]
+dist2 <- as.matrix(read.csv("/Users/Luke/Desktop/distance_matrices/R50_bottleneck_dim2.csv"))[,-1]
+```
+
+```{r}
+differences <- (red_dist2 - dist2)/(dist2) 
+hist(abs(differences))
+```
+
+Average and standard deviation across rows
+```{r}
+#Mean, sd across rows for 0 dimensional matrix.
+mean_bottle_dim_0 <- c()
+for(i in seq(length(red_dist0[,1]))){
+  mean_bottle_dim_0 <- append(mean_bottle_dim_0, mean(red_dist0[,i])) 
+}
+ 
+sd_bottle_dim_0 <- c()
+for(i in seq(length(red_dist0[,1]))){
+  sd_bottle_dim_0 <- append(sd_bottle_dim_0, sd(red_dist0[,i]))
+}
+ 
+#Mean, sd across rows for 1 dimensional matrix.
+
+mean_bottle_dim_1 <- c()
+for(i in seq(length(red_dist1[,1]))){
+  mean_bottle_dim_1 <- append(mean_bottle_dim_1, mean(red_dist1[,i])) 
+}
+
+sd_bottle_dim_1 <- c()
+for(i in seq(length(red_dist1[,1]))){
+  sd_bottle_dim_1 <- append(sd_bottle_dim_1, sd(red_dist1[,i]))
+}
+ 
+#Mean, sd across rows for 2 dimensional matrix.
+
+mean_bottle_dim_2 <- c()
+for(i in seq(length(red_dist2[,1]))){
+  mean_bottle_dim_2 <- append(mean_bottle_dim_2, mean(red_dist2[,i])) 
+}
+
+sd_bottle_dim_2 <- c()
+for(i in seq(length(red_dist2[,1]))){
+  sd_bottle_dim_2 <- append(sd_bottle_dim_2, sd(red_dist2[,i]))
+}
+```
+Number of birth, death points
+```{r}
+number_births_dim0 <- c()
+for(i in seq(temp)){
+  number_births_dim0 <- append(number_births_dim0, length(get(paste0("pers_", i, "_zeros_birth"))))
+}
+
+number_births_dim1 <- c()
+for(i in seq(temp)){
+  number_births_dim1 <- append(number_births_dim1, length(get(paste0("pers_", i, "_ones_birth"))))
+}
+
+number_births_dim2 <- c()
+for(i in seq(temp)){
+  number_births_dim2 <- append(number_births_dim2, length(get(paste0("pers_", i, "_twos_birth"))))
+}
+
+```
+
+Put data into CSVs.
+```{r}
+dist_dim0_data <- data.frame("reduce_avg_bottle_dist_dim0" = mean_bottle_dim_0, "reduce_sd_bottle_dist_dim0" = sd_bottle_dim_0)
+
+dist_dim1_data <- data.frame("reduce_avg_bottle_dist_dim0" = mean_bottle_dim_0, "reduce_sd_bottle_dist_dim0" = sd_bottle_dim_0)
+
+dist_dim2_data <- data.frame("reduce_avg_bottle_dist_dim0" = mean_bottle_dim_0, "reduce_sd_bottle_dist_dim0" = sd_bottle_dim_0)
+
+write.csv(dist_dim0_data, file = "reduce_bottleneck_avg_sd_dist_dim0.csv")
+write.csv(dist_dim1_data, file = "reduce_bottleneck_avg_sd_dist_dim1.csv")
+write.csv(dist_dim2_data, file = "reduce_bottleneck_avg_sd_dist_dim2.csv")
+```
+
+```{r}
+write.csv(number_births_dim0, file = "number_of_births_deaths_dim0.csv")
+write.csv(number_births_dim1, file = "number_of_births_deaths_dim1.csv")
+write.csv(number_births_dim2, file = "number_of_births_deaths_dim2.csv")
+
+```
