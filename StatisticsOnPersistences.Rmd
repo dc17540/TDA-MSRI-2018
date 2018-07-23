@@ -1,0 +1,2700 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+```{R}
+library(sets)
+library(moments)
+```
+
+Load labels and the data.
+```{r}
+temp <- as.matrix(read.csv("/Users/Luke/Desktop/github/TDA-MSRI-2018/persit_2000_fixed/REFERENCE-v3.csv", header = F))
+##DONT FORGET TO DELETE THE FIRST COLUMN!!! Not done here because it is already gone. 
+```
+##Load persistence variables
+Load the persistence diagram variables.
+```{r}
+directory <-"/Users/Luke/Desktop/github/TDA-MSRI-2018/persit_2000_fixed/"
+
+load_persistence_variable <- function(directory, labels, n){
+  return(as.matrix(read.csv(file = paste0(directory, temp[n], ".csv")), header = T)[,-1])
+}
+
+num_pers <- 2392
+#For loop will generate persistence variables.
+
+for(i in seq(num_pers)){
+  print(i)
+  assign(paste0("persistence", i), load_persistence_variable(directory, labels, i))
+}
+```
+
+##Counting Dimensions
+Unimportant helper function. Counts the number of zeros, ones and two dimensional features in the persistence diagrams, given whatever persistence diagram you want.
+```{r}
+Counting_Dimensions <- function(n){
+  tempFrame <- data.frame("Dimension" = get(paste0("persistence", n))[,1], "Birth" = get(paste0("persistence", n))[,2], "Death" = get(paste0("persistence", n))[,3])  
+  return(table(tempFrame$Dimension))
+}
+```
+#Extract noise.
+```{r}
+good_pers_index <- c()
+pers_bad_index0 <- c()
+pers_bad_index1 <- c()
+pers_bad_index2 <- c()
+pers_bad_index12 <- c()
+
+for(i in seq(num_pers)){
+  if(!is.na(Counting_Dimensions(i)[1]) & !is.na(Counting_Dimensions(i)[2]) & !is.na(Counting_Dimensions(i)[3]) ){
+    good_pers_index <- append(good_pers_index, i)
+  }
+}
+for(i in seq(num_pers)){
+  if(is.na(Counting_Dimensions(i)[1])){
+    pers_bad_index0 <- append(pers_bad_index0, i)
+  }
+  if(is.na(Counting_Dimensions(i)[2]) &  is.na(Counting_Dimensions(i)[3])){ #Check for files with no 0 dimensional features
+    pers_bad_index12 <- append(pers_bad_index12, i)
+  }
+  if(is.na(Counting_Dimensions(i)[2])){ #Check for files with no 1 dimensional features
+    pers_bad_index1 <- append(pers_bad_index1, i)
+  }
+  if(is.na(Counting_Dimensions(i)[3]) ){ #Check for files with no 2 dimensional features
+    pers_bad_index2 <- append(pers_bad_index2, i)
+  }
+}
+
+bad_files_dim1 <- c()
+bad_files_dim2 <- c()
+bad_files_dim12 <- c()
+
+for(i in pers_bad_index1){
+  bad_files_dim1 <- append(bad_files_dim1, temp[i,2])
+}
+
+for(i in pers_bad_index2){
+  bad_files_dim2 <- append(bad_files_dim2, temp[i, 2]) 
+}
+
+for(i in pers_bad_index12){
+  bad_files_dim12 <- append(bad_files_dim12, temp[i,2])
+}
+```
+
+```{r}
+normal_files <- c()
+for(i in good_pers_index){
+  if(temp[i,2] == "N"){
+    normal_files <- append(normal_files, i)
+  }
+}
+
+af_files <- c()
+for(i in good_pers_index){
+  if(temp[i,2] == "A"){
+    af_files <- append(af_files, i)
+  }
+}
+
+r_files <- c()
+for(i in good_pers_index){
+  if(temp[i,2] == "~"){
+    r_files <- append(r_files, i)
+  }
+}
+
+o_files <- c() 
+for(i in good_pers_index){
+  if(temp[i,2] == "O"){
+    o_files <- append(o_files, i) 
+  } 
+}
+```
+##Export the labels.
+```{R}
+labels <- c()
+for(i in seq(num_pers)){
+  labels <- append(labels, temp[i,1])
+} 
+
+classes <- c() 
+for(i in seq(num_pers)){
+  classes <- append(classes, temp[i,2])
+}
+```
+
+#Save as CSVs. 
+```{r}
+a <- data.frame("N" = temp[which(classes == "N"), 1])
+b <- data.frame("AF" = temp[which(classes == "A"), 1])
+c <- data.frame("Rand" = temp[which(classes == "~"), 1])
+d <- data.frame("O" = temp[which(classes == "O"), 1])
+
+write.csv(a, file = "Normal_2392.csv")
+write.csv(b, file = "AF_2392.csv") 
+write.csv(c, file = "Rand_2392.csv")
+write.csv(d, file = "O_2392.csv") 
+```
+
+##Compute_dim_births and Compute_dim_deaths
+Unimportant helper function. 
+```{r} 
+compute_zeros_birth <- function(n,a){
+  L <- c()
+  for(i in seq(a)){
+   L <- append(L , get(paste0("persistence", n))[i,2])
+  }
+  return(L)
+}
+compute_zeros_death <- function(n,a){
+  L <- c()
+  for(i in seq(a)){
+   L <- append(L , get(paste0("persistence", n))[i,3])
+  }
+  return(L)
+}
+###############################  
+compute_ones_birth <- function(n,a,b){
+  L <- c()
+  for(i in seq(from=a+1, to=a+b)){
+   L <- append(L , get(paste0("persistence", n))[i,2])
+  }
+  return(L)
+}
+compute_ones_death <- function(n,a,b){
+  L <- c()
+  for(i in seq(from=a+1, to=a+b)){
+   L <- append(L , get(paste0("persistence", n))[i,3])
+  }
+  return(L)
+}
+#################
+compute_twos_birth <- function(n,a,b,c){
+  L <- c()
+  for(i in seq(from=a+b+1, to=a+b+c)){
+  L <- append(L , get(paste0("persistence", n))[i,2])
+  }
+  return(L)
+} 
+compute_twos_death <- function(n,a,b,c){ 
+  L <- c()
+  for(i in seq(from=a+b+1, to=a+b+c)){
+  L <- append(L , get(paste0("persistence", n))[i,3])
+  }
+  return(L)
+} 
+``` 
+
+##Extract_dim_biths and Extract_dim_deaths
+Extracts the zero, one and two dimensional birth and death features.
+```{r}
+Extract_Birth_Zeros <- function(n){ #n is desired dimension
+    p <- c()
+    a <- Counting_Dimensions(n)[1]
+    #b <- Counting_Dimensions(n)[2]
+    #c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth variables.
+    assign(paste0("pers_", n, "_zeros_birth"), compute_zeros_birth(n,a))
+    p <- append(p, get(paste0("pers_", n, "_zeros_birth")))
+    return(p)
+}
+Extract_Death_Zeros <- function(n){ #n is desired dimension
+    p <- c()
+    a <- Counting_Dimensions(n)[1]
+    #b <- Counting_Dimensions(n)[2]
+    #c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth and death variables
+    assign(paste0("pers_", n, "_zeros_death"), compute_zeros_death(n,a))
+    p <- append(p, get(paste0("pers_", n, "_zeros_death")))
+    return(p)
+    # k <- 0
+    # assign(k, compute_zeros_death(n,a))
+    # return(k)
+}
+Extract_Birth_Ones <- function(n){ #n is desired dimension
+    p<- c()
+    a <- Counting_Dimensions(n)[1]
+    b <- Counting_Dimensions(n)[2]
+    #c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth and death variables.
+    assign(paste0("pers_", n, "_ones_birth"), compute_ones_birth(n,a,b)) 
+    p <- append(p, get(paste0("pers_", n, "_ones_birth")))
+    return(p)
+}
+Extract_Death_Ones <- function(n){ #n is desired dimension
+    p<- c()
+    a <- Counting_Dimensions(n)[1]
+    b <- Counting_Dimensions(n)[2]
+    #c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth and death variables.
+    assign(paste0("pers_", n, "_ones_death"), compute_ones_death(n,a,b)) 
+    p <- append(p, get(paste0("pers_", n, "_ones_death")))
+    return(p)
+}
+Extract_Birth_Twos <- function(n){ #n is desired dimension
+    p<-c()
+    a <- Counting_Dimensions(n)[1]
+    b <- Counting_Dimensions(n)[2]
+    c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth variables.
+    assign(paste0("pers_", n, "_twos_birth"), compute_twos_birth(n,a,b,c)) 
+    p <- append(p, get(paste0("pers_", n, "_twos_birth")))
+    return(p)    
+}
+Extract_Death_Twos <- function(n){ #n is desired dimension
+    p<-c()
+    a <- Counting_Dimensions(n)[1]
+    b <- Counting_Dimensions(n)[2]
+    c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth and death variables. 
+    assign(paste0("pers_", n, "_twos_death"), compute_twos_death(n,a,b,c)) 
+    p <- append(p, get(paste0("pers_", n, "_twos_death")))
+    return(p)    
+}
+```
+
+##Store_birth_dim and Store_death_dim
+Stores the zero, one and two dimensional birth and death features of each persistence diagram in your global environment. You will have many, many variables in your environment.
+```{r}
+# #Stores pers_zeros_births
+# for(i in good_pers_index){
+#    assign(paste0("pers_", i, "_zeros_birth"), Extract_Birth_Zeros(i),envir=.GlobalEnv)
+# }
+# #Stores pers_zeros_deaths
+# for(i in good_pers_index){
+#    assign(paste0("pers_", i, "_zeros_death"), Extract_Death_Zeros(i),envir=.GlobalEnv)
+# }
+# #Stores pers_ones_births
+# for(i in good_pers_index){
+#    assign(paste0("pers_", i, "_ones_birth"), Extract_Birth_Ones(i),envir=.GlobalEnv)
+# }
+# #Stores pers_ones_deaths
+# for(i in good_pers_index){
+#    assign(paste0("pers_", i, "_ones_death"), Extract_Death_Ones(i),envir=.GlobalEnv)
+# }
+# #Stores pers_twos_births
+# for(i in good_pers_index){
+#    assign(paste0("pers_", i, "_twos_birth"), Extract_Birth_Twos(i),envir=.GlobalEnv)
+# }
+# #Stores pers_twos_deaths
+# for(i in good_pers_index){ 
+#    assign(paste0("pers_", i, "_twos_death"), Extract_Death_Twos(i),envir=.GlobalEnv)
+# } 
+# 
+# #Stores dumb motherfucking ones 
+# for(i in pers_bad_index2){
+#   assign(paste0("pers_", i, "_ones_birth"), Extract_Birth_Ones(i),envir=.GlobalEnv)
+# }
+# 
+# for(i in pers_bad_index2){
+#   assign(paste0("pers_", i, "_ones_death"), Extract_Death_Ones(i),envir=.GlobalEnv)
+# }
+# 
+# for(i in pers_bad_index2){
+#     assign(paste0("pers_", i, "_zeros_birth"), Extract_Birth_Zeros(i),envir=.GlobalEnv)
+# }
+# 
+# for(i in pers_bad_index2){
+#     assign(paste0("pers_", i, "_zeros_death"), Extract_Death_Zeros(i),envir=.GlobalEnv)
+# }
+#####Clean function#####
+for(i in num_pers){
+  if(i %in% good_pers_index){
+    assign(paste0("pers_", i, "_zeros_birth"), Extract_Birth_Zeros(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_zeros_death"), Extract_Death_Zeros(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_ones_birth"), Extract_Birth_Ones(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_ones_death"), Extract_Death_Ones(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_twos_birth"), Extract_Birth_Twos(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_twos_death"), Extract_Death_Twos(i),envir=.GlobalEnv)
+  }
+  if(i %in% bad_pers_index1 & !(i %in%  bad_pers_index2)){#Has no 1 dimensional features, but 2 dimension features
+    assign(paste0("pers_", i, "_zeros_birth"), Extract_Birth_Zeros(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_zeros_death"), Extract_Death_Zeros(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_twos_birth"), Extract_Birth_Twos(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_twos_death"), Extract_Death_Twos(i),envir=.GlobalEnv)
+  }
+  if(!(i %in% bad_pers_index1) & !(i %in% bad_pers_index)){#Has 1 dimensional features but no 2 dimensional features
+    assign(paste0("pers_", i, "_zeros_birth"), Extract_Birth_Zeros(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_zeros_death"), Extract_Death_Zeros(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_ones_birth"), Extract_Birth_Ones(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_ones_death"), Extract_Death_Ones(i),envir=.GlobalEnv)    
+  }
+  if(i %in% bad_pers_index12){#Has no 1 or 2 dimensional features
+    assign(paste0("pers_", i, "_zeros_birth"), Extract_Birth_Zeros(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_zeros_death"), Extract_Death_Zeros(i),envir=.GlobalEnv)    
+  }
+}
+
+
+```
+
+##Mean and SD of births across dimensions.
+These functions below store the mean and standard deviation values across the birth values for dimensions one and two. We skip the births of dimension 0, since they're all 0s.
+```{r}
+mean_Births_Normal_dim_1 <- c()
+mean_Births_Normal_dim_2 <- c()
+
+sd_Births_Normal_dim_1 <- c()
+sd_Births_Normal_dim_2 <- c()
+
+mean_Births_AF_dim_1 <- c()
+mean_Births_AF_dim_2 <- c()
+
+sd_Births_AF_dim_1 <- c()
+sd_Births_AF_dim_2 <- c()
+
+mean_Births_Rand_dim_1 <- c()
+mean_Births_Rand_dim_2 <- c()
+
+sd_Births_Rand_dim_1 <- c()
+sd_Births_Rand_dim_2 <- c()
+
+mean_Births_O_dim_1 <- c()
+mean_Births_O_dim_2 <- c()
+
+sd_Births_O_dim_1 <- c()
+sd_Births_O_dim_2 <- c()
+
+for(i in seq(num_pers)){
+  if(i %in% good_pers_index){
+    if(i %in% normal_files){
+      mean_Births_Normal_dim_1 <- append(mean_Births_Normal_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+      mean_Births_Normal_dim_2 <- append(mean_Births_Normal_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+
+    if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+      sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+    }
+    else{
+      sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, 50)
+    }
+    if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+      sd_Births_Normal_dim_2 <- append(sd_Births_Normal_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+    }
+    else{
+      sd_Births_Normal_dim_2 <- append(sd_Births_Normal_dim_2, 80)
+    }
+}
+    
+    if(i %in% af_files){
+  mean_Births_AF_dim_1 <- append(mean_Births_AF_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+  mean_Births_AF_dim_2 <- append(mean_Births_AF_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+
+  if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+    sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+  }
+    else{
+      sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, 50)
+    }
+  if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+    sd_Births_AF_dim_2 <- append(sd_Births_AF_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+  }
+  else{
+    sd_Births_AF_dim_2 <- append(sd_Births_AF_dim_2, 80)
+  }
+}
+
+    if(i %in% r_files){
+    mean_Births_Rand_dim_1 <- append(mean_Births_Rand_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+    mean_Births_Rand_dim_2 <- append(mean_Births_Rand_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+
+  if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+    sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+  }
+  else{
+    sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, 50)
+  }
+
+  if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+    sd_Births_Rand_dim_2 <- append(sd_Births_Rand_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+  }
+  else{
+    sd_Births_Rand_dim_2 <- append(sd_Births_Rand_dim_2, 80)
+  }
+}
+
+    if(i %in% o_files){
+    mean_Births_O_dim_1 <- append(mean_Births_O_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+    mean_Births_O_dim_2 <- append(mean_Births_O_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+
+  if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+    sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+  }
+  else{
+    sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, 50)
+  }
+
+  if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+    sd_Births_O_dim_2 <- append(sd_Births_O_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+  }
+  else{
+    sd_Births_O_dim_2 <- append(sd_Births_O_dim_2, 80)
+  }
+}
+  }
+  
+  if(i %in% pers_bad_index2){
+    print(i)
+    if(temp[i,2] == "N"){
+      mean_Births_Normal_dim_1 <- append(mean_Births_Normal_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+      
+      if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+        sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+      }
+      else{
+      sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1,80)
+      }
+      
+      if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+        mean_Births_Normal_dim_1 <- append(mean_Births_Normal_dim_1, 100)
+        sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, 700)
+    }
+      if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+        mean_Births_Normal_dim_2 <- append(mean_Births_Normal_dim_2, 300)
+        sd_Births_Normal_dim_2 <- append(sd_Births_Normal_dim_2, 1000)
+    }
+      if(i %in% pers_bad_index12){ #10000
+        mean_Births_Normal_dim_1 <- append(mean_Births_Normal_dim_1, 100)
+        mean_Births_Normal_dim_2 <- append(mean_Births_Normal_dim_2, 300)
+        sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, 700)
+        sd_Births_Normal_dim_2 <- append(sd_Births_Normal_dim_2, 1000)
+    }
+  }
+
+    if(temp[i,2] == "A"){
+      mean_Births_AF_dim_1 <- append(mean_Births_AF_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+    if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+      sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+    }
+    else{
+      sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, 80)
+    }
+      
+      if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+        mean_Births_AF_dim_1 <- append(mean_Births_AF_dim_1, 100)
+        sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, 700)
+      }
+      if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+        mean_Births_AF_dim_2 <- append(mean_Births_AF_dim_2, 300)
+        sd_Births_AF_dim_2 <- append(sd_Births_AF_dim_2, 1000)
+      }
+      if(i %in% pers_bad_index12){ #10000
+        mean_Births_AF_dim_1 <- append(mean_Births_AF_dim_1, 100)
+        mean_Births_AF_dim_2 <- append(mean_Births_AF_dim_2, 300)
+        sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, 700)
+        sd_Births_AF_dim_2 <- append(sd_Births_AF_dim_2, 1000)
+    }
+  }
+
+    if(temp[i,2] == "~"){
+      mean_Births_Rand_dim_1 <- append(mean_Births_Rand_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+    if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+      sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+    }
+    else{
+      sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, 80)
+    } 
+      
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Births_Rand_dim_1 <- append(mean_Births_Rand_dim_1, 100)
+      sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, 700)
+  }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+      mean_Births_Rand_dim_2 <- append(mean_Births_Rand_dim_2, 300)
+      sd_Births_Rand_dim_2 <- append(sd_Births_Rand_dim_2, 1000)
+    }
+    if(i %in% pers_bad_index12){ #10000
+      mean_Births_Rand_dim_1 <- append(mean_Births_Rand_dim_1, 100)
+      mean_Births_Rand_dim_2 <- append(mean_Births_Rand_dim_2, 300)
+      sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, 700)
+      sd_Births_Rand_dim_2 <- append(sd_Births_Rand_dim_2, 1000)
+    }
+    }
+    
+    if(temp[i,2] == "O"){
+      mean_Births_O_dim_1 <- append(mean_Births_O_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+      
+    if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+      sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+    }
+    else{
+      sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, 80)
+    }      
+      
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Births_O_dim_1 <- append(mean_Births_O_dim_1, 100)
+      sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, 700)
+    }
+      
+      if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Births_O_dim_1 <- append(mean_Births_O_dim_1, 100)
+      sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, 700)
+    }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+      mean_Births_O_dim_2 <- append(mean_Births_O_dim_2, 300)
+      sd_Births_O_dim_2 <- append(sd_Births_O_dim_2, 1000)
+    }
+    if(i %in% pers_bad_index12){ #10000
+      mean_Births_O_dim_1 <- append(mean_Births_O_dim_1, 100)
+      mean_Births_O_dim_2 <- append(mean_Births_O_dim_2, 300)
+      sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, 700)
+      sd_Births_O_dim_2 <- append(sd_Births_O_dim_2, 1000)
+    }
+  }
+  }
+}
+```
+
+##Mean and SD of deaths across dimensions.
+These functions below store the mean and standard deviation values across the death values for dimensions zero, one and two.
+```{r}
+mean_Deaths_Normal_dim_0 <- c()
+mean_Deaths_Normal_dim_1 <- c()
+mean_Deaths_Normal_dim_2 <- c() 
+
+sd_Deaths_Normal_dim_0 <- c()
+sd_Deaths_Normal_dim_1 <- c()
+sd_Deaths_Normal_dim_2 <- c()
+
+mean_Deaths_AF_dim_0 <- c()
+mean_Deaths_AF_dim_1 <- c()
+mean_Deaths_AF_dim_2 <- c()
+
+sd_Deaths_AF_dim_0 <- c()
+sd_Deaths_AF_dim_1 <- c()
+sd_Deaths_AF_dim_2 <- c()
+
+mean_Deaths_Rand_dim_0 <- c()
+mean_Deaths_Rand_dim_1 <- c()
+mean_Deaths_Rand_dim_2 <- c()
+
+sd_Deaths_Rand_dim_0 <- c()
+sd_Deaths_Rand_dim_1 <- c()
+sd_Deaths_Rand_dim_2 <- c()
+
+mean_Deaths_O_dim_0 <- c()
+mean_Deaths_O_dim_1 <- c()
+mean_Deaths_O_dim_2 <- c()
+
+sd_Deaths_O_dim_0 <- c()
+sd_Deaths_O_dim_1 <- c()
+sd_Deaths_O_dim_2 <- c()
+
+for(i in seq(num_pers)){
+  if(i %in% good_pers_index){
+    if(i %in% normal_files){
+  mean_Deaths_Normal_dim_0 <- append(mean_Deaths_Normal_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_Normal_dim_1 <- append(mean_Deaths_Normal_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+  mean_Deaths_Normal_dim_2 <- append(mean_Deaths_Normal_dim_2, mean(get(paste0("pers_", i, "_twos_death"))))
+
+  if(length(get(paste0("pers_", i, "_zeros_death")) != 1)){
+    sd_Deaths_Normal_dim_0 <- append(sd_Deaths_Normal_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_Normal_dim_0 <- append(sd_Deaths_Normal_dim_0, 50)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+    sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1,80)
+  }
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_Normal_dim_2 <- append(sd_Deaths_Normal_dim_2, sd(get(paste0("pers_", i, "_twos_death"))))
+  }
+  else{
+    sd_Deaths_Normal_dim_2 <- append(sd_Deaths_Normal_dim_2, 30)
+  }
+}
+
+    if(i %in% af_files){
+  mean_Deaths_AF_dim_0 <- append(mean_Deaths_AF_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_AF_dim_1 <- append(mean_Deaths_AF_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+
+  if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+    sd_Deaths_AF_dim_0 <- append(sd_Deaths_AF_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_AF_dim_0 <- append(sd_Deaths_AF_dim_0, 50)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+    sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, 80)
+  }
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_AF_dim_2 <- append(sd_Deaths_AF_dim_2, sd(get(paste0("pers_", i, "_twos_death"))))
+  }
+  else{
+    sd_Deaths_AF_dim_2 <- append(sd_Deaths_AF_dim_2, 30)
+  }
+}
+
+    if(i %in% r_files){
+  mean_Deaths_Rand_dim_0 <- append(mean_Deaths_Rand_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_Rand_dim_1 <- append(mean_Deaths_Rand_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+
+  if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+    sd_Deaths_Rand_dim_0 <- append(sd_Deaths_Rand_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_Rand_dim_0 <- append(sd_Deaths_Rand_dim_0, 50)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+  sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, 80)
+  }
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_Rand_dim_2 <- append(sd_Deaths_Rand_dim_2, sd(get(paste0("pers_", i, "_twos_death"))))
+  }
+  else{
+    sd_Deaths_Rand_dim_2 <- append(sd_Deaths_Rand_dim_2, 30)
+  }
+}
+
+    if(i %in% o_files){
+  mean_Deaths_O_dim_0 <- append(mean_Deaths_O_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_O_dim_1 <- append(mean_Deaths_O_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+
+  if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+    sd_Deaths_O_dim_0 <- append(sd_Deaths_O_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_O_dim_0 <- append(sd_Deaths_O_dim_0, 50)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+  sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, 80)
+  }
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_O_dim_2 <- append(sd_Deaths_O_dim_2, sd(get(paste0("pers_", i, "_twos_death"))))
+  }
+  else{
+    sd_Deaths_O_dim_2 <- append(sd_Deaths_O_dim_2, 30)
+  }
+}
+  }
+
+  if(i %in% pers_bad_index2){ 
+    if(temp[i,2] == "N"){
+      mean_Deaths_Normal_dim_0 <- append(mean_Deaths_Normal_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+      mean_Deaths_Normal_dim_1 <- append(mean_Deaths_Normal_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+      
+      if(length(get(paste0("pers_", i, "_zeros_death")) != 1)){
+        sd_Deaths_Normal_dim_0 <- append(sd_Deaths_Normal_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+      }
+      else{
+        sd_Deaths_Normal_dim_0 <- append(sd_Deaths_Normal_dim_0, 50)
+      }
+      if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+        sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+      }
+      else{
+      sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1,80)
+      }
+      
+      if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+        mean_Deaths_Normal_dim_1 <- append(mean_Deaths_Normal_dim_1, 100)
+        sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1, 700)
+      }
+      if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+        print(i)
+        mean_Deaths_Normal_dim_2 <- append(mean_Deaths_Normal_dim_2, 300)
+        sd_Deaths_Normal_dim_2 <- append(sd_Deaths_Normal_dim_2, 1000)
+    }
+      if(i %in% pers_bad_index12){ #10000
+        mean_Deaths_Normal_dim_1 <- append(mean_Deaths_Normal_dim_1, 100)
+        mean_Deaths_Normal_dim_2 <- append(mean_Deaths_Normal_dim_2, 300)
+        sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1, 700)
+        sd_Deaths_Normal_dim_2 <- append(sd_Deaths_Normal_dim_2, 1000)
+    }
+  }
+
+    if(temp[i,2] == "A"){
+      mean_Deaths_AF_dim_0 <- append(mean_Deaths_AF_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+      mean_Deaths_AF_dim_1 <- append(mean_Deaths_AF_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+
+    if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+      sd_Deaths_AF_dim_0 <- append(sd_Deaths_AF_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+    }
+    else{
+      sd_Deaths_AF_dim_0 <- append(sd_Deaths_AF_dim_0, 50)
+    }
+    if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+      sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+    }
+    else{
+      sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, 80)
+    }
+      
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+        mean_Deaths_AF_dim_1 <- append(mean_Deaths_AF_dim_1, 100)
+        sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, 700)
+      }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+        print(i)
+        mean_Deaths_AF_dim_2 <- append(mean_Deaths_AF_dim_2, 300)
+        sd_Deaths_AF_dim_2 <- append(sd_Deaths_AF_dim_2, 1000)
+      }
+    if(i %in% pers_bad_index12){ #10000
+        mean_Deaths_AF_dim_1 <- append(mean_Deaths_AF_dim_1, 100)
+        mean_Deaths_AF_dim_2 <- append(mean_Deaths_AF_dim_2, 300)
+        sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, 700)
+        sd_Deaths_AF_dim_2 <- append(sd_Deaths_AF_dim_2, 1000)
+    }
+  }
+
+    if(temp[i,2] == "~"){
+      mean_Deaths_Rand_dim_0 <- append(mean_Deaths_Rand_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+      mean_Deaths_Rand_dim_1 <- append(mean_Deaths_Rand_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+      
+    if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+      sd_Deaths_Rand_dim_0 <- append(sd_Deaths_Rand_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+    }
+    else{
+      sd_Deaths_Rand_dim_0 <- append(sd_Deaths_Rand_dim_0, 50)
+    }
+    if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+      sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+    }
+    else{
+      sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, 80)
+    }      
+      
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Deaths_Rand_dim_1 <- append(mean_Deaths_Rand_dim_1, 100)
+      sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, 700)
+    }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features 
+      print(i)
+      mean_Deaths_Rand_dim_2 <- append(mean_Deaths_Rand_dim_2, 300)
+      sd_Deaths_Rand_dim_2 <- append(sd_Deaths_Rand_dim_2, 1000)
+    }
+    if(i %in% pers_bad_index12){ #10000
+      mean_Deaths_Rand_dim_1 <- append(mean_Deaths_Rand_dim_1, 100)
+      mean_Deaths_Rand_dim_2 <- append(mean_Deaths_Rand_dim_2, 300)
+      sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, 700)
+      sd_Deaths_Rand_dim_2 <- append(sd_Deaths_Rand_dim_2, 1000)
+    }
+  }
+    
+    if(temp[i,2] == "O"){
+      mean_Deaths_O_dim_0 <- append(mean_Deaths_O_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+      mean_Deaths_O_dim_1 <- append(mean_Deaths_O_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+
+    if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){ 
+      sd_Deaths_O_dim_0 <- append(sd_Deaths_O_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+    }
+    else{
+      sd_Deaths_O_dim_0 <- append(sd_Deaths_O_dim_0, 50)
+    }
+    if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+      sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+    }
+    else{
+      sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, 80)
+    }      
+      
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Deaths_O_dim_1 <- append(mean_Deaths_O_dim_1, 100)
+      sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, 700)
+    }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+      print(i)
+      mean_Deaths_O_dim_2 <- append(mean_Deaths_O_dim_2, 300)
+      sd_Deaths_O_dim_2 <- append(sd_Deaths_O_dim_2, 1000)
+    }
+    if(i %in% pers_bad_index12){ #10000
+      mean_Deaths_O_dim_1 <- append(mean_Deaths_O_dim_1, 100)
+      mean_Deaths_O_dim_2 <- append(mean_Deaths_O_dim_2, 300)
+      sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, 700)
+      sd_Deaths_O_dim_2 <- append(sd_Deaths_O_dim_2, 1000)
+    }
+  }
+  } 
+}
+```
+
+###HOLD THIS OBSOLETE CODE
+```{r}
+mean_Births_Normal_dim_1 <- c()
+mean_Births_Normal_dim_2 <- c()
+
+sd_Births_Normal_dim_1 <- c()
+sd_Births_Normal_dim_2 <- c()
+
+mean_Births_AF_dim_1 <- c()
+mean_Births_AF_dim_2 <- c()
+
+sd_Births_AF_dim_1 <- c()
+sd_Births_AF_dim_2 <- c()
+
+mean_Births_Rand_dim_1 <- c()
+mean_Births_Rand_dim_2 <- c()
+
+sd_Births_Rand_dim_1 <- c()
+sd_Births_Rand_dim_2 <- c()
+
+mean_Births_O_dim_1 <- c()
+mean_Births_O_dim_2 <- c()
+
+sd_Births_O_dim_1 <- c()
+sd_Births_O_dim_2 <- c()
+
+for(i in seq(num_pers)){
+  if(i %in% good_pers_index){
+    if(i %in% normal_files){
+      mean_Births_Normal_dim_1 <- append(mean_Births_Normal_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+      mean_Births_Normal_dim_2 <- append(mean_Births_Normal_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+
+    if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+      sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+    }
+    else{
+      sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, 50)
+    }
+    if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+      sd_Births_Normal_dim_2 <- append(sd_Births_Normal_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+    }
+    else{
+      sd_Births_Normal_dim_2 <- append(sd_Births_Normal_dim_2, 80)
+    }
+}
+    
+    if(i %in% af_files){
+  mean_Births_AF_dim_1 <- append(mean_Births_AF_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+  mean_Births_AF_dim_2 <- append(mean_Births_AF_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+
+  if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+    sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+  }
+    else{
+      sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, 50)
+    }
+  if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+    sd_Births_AF_dim_2 <- append(sd_Births_AF_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+  }
+  else{
+    sd_Births_AF_dim_2 <- append(sd_Births_AF_dim_2, 80)
+  }
+}
+
+    if(i %in% r_files){
+    mean_Births_Rand_dim_1 <- append(mean_Births_Rand_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+    mean_Births_Rand_dim_2 <- append(mean_Births_Rand_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+
+  if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+    sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+  }
+  else{
+    sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, 50)
+  }
+
+  if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+    sd_Births_Rand_dim_2 <- append(sd_Births_Rand_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+  }
+  else{
+    sd_Births_Rand_dim_2 <- append(sd_Births_Rand_dim_2, 80)
+  }
+}
+
+    if(i %in% o_files){
+    mean_Births_O_dim_1 <- append(mean_Births_O_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+    mean_Births_O_dim_2 <- append(mean_Births_O_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+
+  if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+    sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+  }
+  else{
+    sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, 50)
+  }
+
+  if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+    sd_Births_O_dim_2 <- append(sd_Births_O_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+  }
+  else{
+    sd_Births_O_dim_2 <- append(sd_Births_O_dim_2, 80)
+  }
+}
+  }
+  
+  if(i %in% pers_bad_index2){
+    print(i)
+    if(temp[i,2] == "N"){
+      mean_Births_Normal_dim_1 <- append(mean_Births_Normal_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+      
+      if(length(get(paste0("pers_", i, "_zeros_birth")) != 1)){
+        sd_Births_Normal_dim_0 <- append(sd_Births_Normal_dim_0, sd(get(paste0("pers_", i, "_zeros_birth"))[1:(length(get(paste0("pers_", i, "_zeros_birth")))-1)]))
+      }
+      else{
+        sd_Births_Normal_dim_0 <- append(sd_Births_Normal_dim_0, 50)
+      }
+      if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+        sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+      }
+      else{
+      sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1,80)
+      }
+      
+      if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+        mean_Births_Normal_dim_1 <- append(mean_Births_Normal_dim_1, 100)
+        sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, 700)
+    }
+      if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+        mean_Births_Normal_dim_2 <- append(mean_Births_Normal_dim_2, 300)
+        sd_Births_Normal_dim_2 <- append(sd_Births_Normal_dim_2, 1000)
+    }
+      if(i %in% pers_bad_index12){ #10000
+        mean_Births_Normal_dim_1 <- append(mean_Births_Normal_dim_1, 100)
+        mean_Births_Normal_dim_2 <- append(mean_Births_Normal_dim_2, 300)
+        sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, 700)
+        sd_Births_Normal_dim_2 <- append(sd_Births_Normal_dim_2, 1000)
+    }
+  }
+
+    if(temp[i,2] == "A"){
+      mean_Births_AF_dim_1 <- append(mean_Births_AF_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+    if(length(get(paste0("pers_", i, "_zeros_birth"))) != 1){
+      sd_Births_AF_dim_0 <- append(sd_Births_AF_dim_0, sd(get(paste0("pers_", i, "_zeros_birth"))[1:(length(get(paste0("pers_", i, "_zeros_birth")))-1)]))
+    }
+    else{
+      sd_Births_AF_dim_0 <- append(sd_Births_AF_dim_0, 50)
+    }
+    if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+      sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+    }
+    else{
+      sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, 80)
+    }
+      
+      if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+        mean_Births_AF_dim_1 <- append(mean_Births_AF_dim_1, 100)
+        sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, 700)
+      }
+      if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+        mean_Births_AF_dim_2 <- append(mean_Births_AF_dim_2, 300)
+        sd_Births_AF_dim_2 <- append(sd_Births_AF_dim_2, 1000)
+      }
+      if(i %in% pers_bad_index12){ #10000
+        mean_Births_AF_dim_1 <- append(mean_Births_AF_dim_1, 100)
+        mean_Births_AF_dim_2 <- append(mean_Births_AF_dim_2, 300)
+        sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, 700)
+        sd_Births_AF_dim_2 <- append(sd_Births_AF_dim_2, 1000)
+    }
+  }
+
+    if(temp[i,2] == "~"){
+      mean_Births_Rand_dim_1 <- append(mean_Births_Rand_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+    if(length(get(paste0("pers_", i, "_zeros_birth"))) != 1){
+      sd_Births_Rand_dim_0 <- append(sd_Births_Rand_dim_0, sd(get(paste0("pers_", i, "_zeros_birth"))[1:(length(get(paste0("pers_", i, "_zeros_birth")))-1)]))
+    }
+    else{
+      sd_Births_Rand_dim_0 <- append(sd_Births_Rand_dim_0, 50)
+    }
+    if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+      sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+    }
+    else{
+      sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, 80)
+    } 
+      
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Births_Rand_dim_1 <- append(mean_Births_Rand_dim_1, 100)
+      sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, 700)
+  }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+      mean_Births_Rand_dim_2 <- append(mean_Births_Rand_dim_2, 300)
+      sd_Births_Rand_dim_2 <- append(sd_Births_Rand_dim_2, 1000)
+    }
+    if(i %in% pers_bad_index12){ #10000
+      mean_Births_Rand_dim_1 <- append(mean_Births_Rand_dim_1, 100)
+      mean_Births_Rand_dim_2 <- append(mean_Births_Rand_dim_2, 300)
+      sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, 700)
+      sd_Births_Rand_dim_2 <- append(sd_Births_Rand_dim_2, 1000)
+    }
+    }
+    
+    if(temp[i,2] == "O"){
+      mean_Births_O_dim_1 <- append(mean_Births_O_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+    if(length(get(paste0("pers_", i, "_zeros_birth"))) != 1){
+      sd_Births_O_dim_0 <- append(sd_Births_O_dim_0, sd(get(paste0("pers_", i, "_zeros_birth"))[1:(length(get(paste0("pers_", i, "_zeros_birth")))-1)]))
+    }
+    else{
+      sd_Births_O_dim_0 <- append(sd_Births_O_dim_0, 50)
+    }
+    if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+      sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+    }
+    else{
+      sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, 80)
+    }      
+      
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Births_O_dim_1 <- append(mean_Births_O_dim_1, 100)
+      sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, 700)
+    }
+      
+      if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Births_O_dim_1 <- append(mean_Births_O_dim_1, 100)
+      sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, 700)
+    }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+      mean_Births_O_dim_2 <- append(mean_Births_O_dim_2, 300)
+      sd_Births_O_dim_2 <- append(sd_Births_O_dim_2, 1000)
+    }
+    if(i %in% pers_bad_index12){ #10000
+      mean_Births_O_dim_1 <- append(mean_Births_O_dim_1, 100)
+      mean_Births_O_dim_2 <- append(mean_Births_O_dim_2, 300)
+      sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, 700)
+      sd_Births_O_dim_2 <- append(sd_Births_O_dim_2, 1000)
+    }
+  }
+  }
+}
+```
+##Deaths
+```{r}
+mean_Deaths_Normal_dim_0 <- c()
+mean_Deaths_Normal_dim_1 <- c()
+mean_Deaths_Normal_dim_2 <- c()
+ 
+sd_Deaths_Normal_dim_0 <- c()
+sd_Deaths_Normal_dim_1 <- c()
+sd_Deaths_Normal_dim_2 <- c()
+
+mean_Deaths_AF_dim_0 <- c()
+mean_Deaths_AF_dim_1 <- c()
+mean_Deaths_AF_dim_2 <- c()
+
+sd_Deaths_AF_dim_0 <- c()
+sd_Deaths_AF_dim_1 <- c()
+sd_Deaths_AF_dim_2 <- c()
+
+mean_Deaths_Rand_dim_0 <- c()
+mean_Deaths_Rand_dim_1 <- c()
+mean_Deaths_Rand_dim_2 <- c()
+
+sd_Deaths_Rand_dim_0 <- c()
+sd_Deaths_Rand_dim_1 <- c()
+sd_Deaths_Rand_dim_2 <- c()
+
+mean_Deaths_O_dim_0 <- c()
+mean_Deaths_O_dim_1 <- c()
+mean_Deaths_O_dim_2 <- c()
+
+sd_Deaths_O_dim_0 <- c()
+sd_Deaths_O_dim_1 <- c()
+sd_Deaths_O_dim_2 <- c()
+
+for(i in seq(num_pers)){
+  # print(temp[i,2])
+  # print(i %in% good_pers_index)
+  if(i %in% good_pers_index){
+    if(i %in% normal_files){
+      print(i)
+  mean_Deaths_Normal_dim_0 <- append(mean_Deaths_Normal_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_Normal_dim_1 <- append(mean_Deaths_Normal_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+  mean_Deaths_Normal_dim_2 <- append(mean_Deaths_Normal_dim_2, mean(get(paste0("pers_", i, "_twos_death"))))
+
+  if(length(get(paste0("pers_", i, "_zeros_death")) != 1)){
+    sd_Deaths_Normal_dim_0 <- append(sd_Deaths_Normal_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_Normal_dim_0 <- append(sd_Deaths_Normal_dim_0, 50)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+    sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1,80)
+  }
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_Normal_dim_2 <- append(sd_Deaths_Normal_dim_2, sd(get(paste0("pers_", i, "_twos_death"))))
+  }
+  else{
+    sd_Deaths_Normal_dim_2 <- append(sd_Deaths_Normal_dim_2, 30)
+  }
+}
+
+    if(i %in% af_files){
+  mean_Deaths_AF_dim_0 <- append(mean_Deaths_AF_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_AF_dim_1 <- append(mean_Deaths_AF_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+  mean_Deaths_AF_dim_2 <- append(mean_Deaths_AF_dim_2, mean(get(paste0("pers_", i, "_twos_death"))))
+
+  if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+    sd_Deaths_AF_dim_0 <- append(sd_Deaths_AF_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_AF_dim_0 <- append(sd_Deaths_AF_dim_0, 50)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+    sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, 80)
+  }
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_AF_dim_2 <- append(sd_Deaths_AF_dim_2, sd(get(paste0("pers_", i, "_twos_death"))))
+  }
+  else{
+    sd_Deaths_AF_dim_2 <- append(sd_Deaths_AF_dim_2, 30)
+  }
+}
+
+    if(i %in% r_files){
+  mean_Deaths_Rand_dim_0 <- append(mean_Deaths_Rand_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_Rand_dim_1 <- append(mean_Deaths_Rand_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+  mean_Deaths_Rand_dim_2 <- append(mean_Deaths_Rand_dim_2, mean(get(paste0("pers_", i, "_twos_death"))))
+
+  
+  if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+    sd_Deaths_Rand_dim_0 <- append(sd_Deaths_Rand_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_Rand_dim_0 <- append(sd_Deaths_Rand_dim_0, 50)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+  sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, 80)
+  }
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_Rand_dim_2 <- append(sd_Deaths_Rand_dim_2, sd(get(paste0("pers_", i, "_twos_death"))))
+  }
+  else{
+    sd_Deaths_Rand_dim_2 <- append(sd_Deaths_Rand_dim_2, 30)
+  }
+}
+
+    if(i %in% o_files){
+  mean_Deaths_O_dim_0 <- append(mean_Deaths_O_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_O_dim_1 <- append(mean_Deaths_O_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+  mean_Deaths_O_dim_2 <- append(mean_Deaths_O_dim_2, mean(get(paste0("pers_", i, "_twos_death"))))
+
+  
+  if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+    sd_Deaths_O_dim_0 <- append(sd_Deaths_O_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_O_dim_0 <- append(sd_Deaths_O_dim_0, 50)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+  sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, 80)
+  }
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_O_dim_2 <- append(sd_Deaths_O_dim_2, sd(get(paste0("pers_", i, "_twos_death"))))
+  }
+  else{
+    sd_Deaths_O_dim_2 <- append(sd_Deaths_O_dim_2, 30)
+  }
+}
+  }
+  if(i %in% pers_bad_index2){
+    if(temp[i,2] == "N"){
+      mean_Deaths_Normal_dim_0 <- append(mean_Deaths_Normal_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+      mean_Deaths_Normal_dim_1 <- append(mean_Deaths_Normal_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+
+      if(length(get(paste0("pers_", i, "_zeros_death")) != 1)){
+        sd_Deaths_Normal_dim_0 <- append(sd_Deaths_Normal_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+      }
+      else{
+        sd_Deaths_Normal_dim_0 <- append(sd_Deaths_Normal_dim_0, 50)
+      }
+      if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+        sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+      }
+      else{
+      sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1,80)
+      }
+
+      if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+        mean_Deaths_Normal_dim_1 <- append(mean_Deaths_Normal_dim_1, 100)
+        sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1, 700)
+      }
+      if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+        print(i)
+        mean_Deaths_Normal_dim_2 <- append(mean_Deaths_Normal_dim_2, 300)
+        sd_Deaths_Normal_dim_2 <- append(sd_Deaths_Normal_dim_2, 1000)
+    }
+      if(i %in% pers_bad_index12){ #10000
+        mean_Deaths_Normal_dim_1 <- append(mean_Deaths_Normal_dim_1, 100)
+        mean_Deaths_Normal_dim_2 <- append(mean_Deaths_Normal_dim_2, 300)
+        sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1, 700)
+        sd_Deaths_Normal_dim_2 <- append(sd_Deaths_Normal_dim_2, 1000)
+    }
+  }
+
+    if(temp[i,2] == "A"){
+      mean_Deaths_AF_dim_0 <- append(mean_Deaths_AF_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+      mean_Deaths_AF_dim_1 <- append(mean_Deaths_AF_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+
+    if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+      sd_Deaths_AF_dim_0 <- append(sd_Deaths_AF_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+    }
+    else{
+      sd_Deaths_AF_dim_0 <- append(sd_Deaths_AF_dim_0, 50)
+    }
+    if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+      sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+    }
+    else{
+      sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, 80)
+    }
+
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+        mean_Deaths_AF_dim_1 <- append(mean_Deaths_AF_dim_1, 100)
+        sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, 700)
+      }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+        print(i)
+        mean_Deaths_AF_dim_2 <- append(mean_Deaths_AF_dim_2, 300)
+        sd_Deaths_AF_dim_2 <- append(sd_Deaths_AF_dim_2, 1000)
+      }
+    if(i %in% pers_bad_index12){ #10000
+        mean_Deaths_AF_dim_1 <- append(mean_Deaths_AF_dim_1, 100)
+        mean_Deaths_AF_dim_2 <- append(mean_Deaths_AF_dim_2, 300)
+        sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, 700)
+        sd_Deaths_AF_dim_2 <- append(sd_Deaths_AF_dim_2, 1000)
+    }
+  }
+
+    if(temp[i,2] == "~"){
+      mean_Deaths_Rand_dim_0 <- append(mean_Deaths_Rand_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+      mean_Deaths_Rand_dim_1 <- append(mean_Deaths_Rand_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+
+    if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+      sd_Deaths_Rand_dim_0 <- append(sd_Deaths_Rand_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+    }
+    else{
+      sd_Deaths_Rand_dim_0 <- append(sd_Deaths_Rand_dim_0, 50)
+    }
+    if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+      sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+    }
+    else{
+      sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, 80)
+    }
+
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Deaths_Rand_dim_1 <- append(mean_Deaths_Rand_dim_1, 100)
+      sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, 700)
+    }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+      print(i)
+      mean_Deaths_Rand_dim_2 <- append(mean_Deaths_Rand_dim_2, 300)
+      sd_Deaths_Rand_dim_2 <- append(sd_Deaths_Rand_dim_2, 1000)
+    }
+    if(i %in% pers_bad_index12){ #10000
+      mean_Deaths_Rand_dim_1 <- append(mean_Deaths_Rand_dim_1, 100)
+      mean_Deaths_Rand_dim_2 <- append(mean_Deaths_Rand_dim_2, 300)
+      sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, 700)
+      sd_Deaths_Rand_dim_2 <- append(sd_Deaths_Rand_dim_2, 1000)
+    }
+  }
+
+    if(temp[i,2] == "O"){
+      mean_Deaths_O_dim_0 <- append(mean_Deaths_O_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+      mean_Deaths_O_dim_1 <- append(mean_Deaths_O_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+
+    if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+      sd_Deaths_O_dim_0 <- append(sd_Deaths_O_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+    }
+    else{
+      sd_Deaths_O_dim_0 <- append(sd_Deaths_O_dim_0, 50)
+    }
+    if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+      sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+    }
+    else{
+      sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, 80)
+    }
+
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Deaths_O_dim_1 <- append(mean_Deaths_O_dim_1, 100)
+      sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, 700)
+    }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+      print(i)
+      mean_Deaths_O_dim_2 <- append(mean_Deaths_O_dim_2, 300)
+      sd_Deaths_O_dim_2 <- append(sd_Deaths_O_dim_2, 1000)
+    }
+    if(i %in% pers_bad_index12){ #10000
+      mean_Deaths_O_dim_1 <- append(mean_Deaths_O_dim_1, 100)
+      mean_Deaths_O_dim_2 <- append(mean_Deaths_O_dim_2, 300)
+      sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, 700)
+      sd_Deaths_O_dim_2 <- append(sd_Deaths_O_dim_2, 1000)
+    }
+  }
+  }
+}
+```
+
+```{r}
+mean_Births_Normal_dim_1 <- c()
+mean_Births_Normal_dim_2 <- c()
+
+sd_Births_Normal_dim_1 <- c()
+sd_Births_Normal_dim_2 <- c()
+
+for(i in normal_files){
+    mean_Births_Normal_dim_1 <- append(mean_Births_Normal_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+    mean_Births_Normal_dim_2 <- append(mean_Births_Normal_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+
+    if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+      sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+    }
+    else{
+      sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, 50)
+    }
+    if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+      sd_Births_Normal_dim_2 <- append(sd_Births_Normal_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+    }
+    else{
+      sd_Births_Normal_dim_2 <- append(sd_Births_Normal_dim_2, 80)
+    }
+}
+
+mean_Births_AF_dim_1 <- c()
+mean_Births_AF_dim_2 <- c()
+
+sd_Births_AF_dim_1 <- c()
+sd_Births_AF_dim_2 <- c()
+
+  for(i in af_files){
+  mean_Births_AF_dim_1 <- append(mean_Births_AF_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+  mean_Births_AF_dim_2 <- append(mean_Births_AF_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+
+  if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+    sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+  }
+  else{
+    sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, 50)
+  }
+  if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+    sd_Births_AF_dim_2 <- append(sd_Births_AF_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+  }
+  else{
+    sd_Births_AF_dim_2 <- append(sd_Births_AF_dim_2, 80)
+  }
+}
+
+mean_Births_Rand_dim_1 <- c()
+mean_Births_Rand_dim_2 <- c()
+
+sd_Births_Rand_dim_1 <- c()
+sd_Births_Rand_dim_2 <- c()
+
+  for(i in r_files){
+  mean_Births_Rand_dim_1 <- append(mean_Births_Rand_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+  mean_Births_Rand_dim_2 <- append(mean_Births_Rand_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+
+  if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+    sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+  }
+  else{
+    sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, 50)
+  }
+
+  if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+    sd_Births_Rand_dim_2 <- append(sd_Births_Rand_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+  }
+  else{
+    sd_Births_Rand_dim_2 <- append(sd_Births_Rand_dim_2, 80)
+  }
+}
+
+mean_Births_O_dim_1 <- c()
+mean_Births_O_dim_2 <- c()
+
+sd_Births_O_dim_1 <- c()
+sd_Births_O_dim_2 <- c()
+
+  for(i in o_files){
+  mean_Births_O_dim_1 <- append(mean_Births_O_dim_1, mean(get(paste0("pers_", i, "_ones_birth"))))
+
+  mean_Births_O_dim_2 <- append(mean_Births_O_dim_2,  mean(get(paste0("pers_", i, "_twos_birth"))))
+
+  if(length(get(paste0("pers_", i, "_ones_birth"))) != 1){
+    sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, sd(get(paste0("pers_", i, "_ones_birth"))))
+  }
+  else{
+    sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, 50)
+  }
+
+  if(length(get(paste0("pers_", i, "_twos_birth"))) != 1){
+    sd_Births_O_dim_2 <- append(sd_Births_O_dim_2, sd(get(paste0("pers_", i, "_twos_birth"))))
+  }
+  else{
+    sd_Births_O_dim_2 <- append(sd_Births_O_dim_2, 80)
+  }
+}
+
+  for(i in pers_bad_index2){
+  if(temp[i,2] == "N"){
+      if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Births_Normal_dim_1 <- append(mean_Births_Normal_dim_1, 100)
+      sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, 700)
+    }
+      if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+        mean_Births_Normal_dim_2 <- append(mean_Births_Normal_dim_2, 300)
+        sd_Births_Normal_dim_2 <- append(sd_Births_Normal_dim_2, 1000)
+    }
+      if(i %in% pers_bad_index12){ #10000
+        mean_Births_Normal_dim_1 <- append(mean_Births_Normal_dim_1, 100)
+        mean_Births_Normal_dim_2 <- append(mean_Births_Normal_dim_2, 300)
+        sd_Births_Normal_dim_1 <- append(sd_Births_Normal_dim_1, 700)
+        sd_Births_Normal_dim_2 <- append(sd_Births_Normal_dim_2, 1000)
+    }
+  }
+
+  if(temp[i,2] == "A"){
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+        mean_Births_AF_dim_1 <- append(mean_Births_AF_dim_1, 100)
+        sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, 700)
+      }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+        mean_Births_AF_dim_2 <- append(mean_Births_AF_dim_2, 300)
+        sd_Births_AF_dim_2 <- append(sd_Births_AF_dim_2, 1000)
+      }
+    if(i %in% pers_bad_index12){ #10000
+        mean_Births_AF_dim_1 <- append(mean_Births_AF_dim_1, 100)
+        mean_Births_AF_dim_2 <- append(mean_Births_AF_dim_2, 300)
+        sd_Births_AF_dim_1 <- append(sd_Births_AF_dim_1, 700)
+        sd_Births_AF_dim_2 <- append(sd_Births_AF_dim_2, 1000)
+    }
+  }
+
+  if(temp[i,2] == "R"){
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Births_Rand_dim_1 <- append(mean_Births_Rand_dim_1, 100)
+      sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, 700)
+  }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+      mean_Births_Rand_dim_2 <- append(mean_Births_Rand_dim_2, 300)
+      sd_Births_Rand_dim_2 <- append(sd_Births_Rand_dim_2, 1000)
+    }
+    if(i %in% pers_bad_index12){ #10000
+      mean_Births_Rand_dim_1 <- append(mean_Births_Rand_dim_1, 100)
+      mean_Births_Rand_dim_2 <- append(mean_Births_Rand_dim_2, 300)
+      sd_Births_Rand_dim_1 <- append(sd_Births_Rand_dim_1, 700)
+      sd_Births_Rand_dim_2 <- append(sd_Births_Rand_dim_2, 1000)
+    }
+  }
+  if(temp[i,2] == "~"){
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Births_O_dim_1 <- append(mean_Births_O_dim_1, 100)
+      sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, 700)
+    }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+      mean_Births_O_dim_2 <- append(mean_Births_O_dim_2, 300)
+      sd_Births_O_dim_2 <- append(sd_Births_O_dim_2, 1000)
+    }
+    if(i %in% pers_bad_index12){ #10000
+      mean_Births_O_dim_1 <- append(mean_Births_O_dim_1, 100)
+      mean_Births_O_dim_2 <- append(mean_Births_O_dim_2, 300)
+      sd_Births_O_dim_1 <- append(sd_Births_O_dim_1, 700)
+      sd_Births_O_dim_2 <- append(sd_Births_O_dim_2, 1000)
+    }
+  }
+}
+
+
+```
+
+```{r}
+mean_Deaths_Normal_dim_0 <- c()
+mean_Deaths_Normal_dim_1 <- c()
+mean_Deaths_Normal_dim_2 <- c()
+
+sd_Deaths_Normal_dim_0 <- c()
+sd_Deaths_Normal_dim_1 <- c()
+sd_Deaths_Normal_dim_2 <- c()
+
+for(i in normal_files){
+  mean_Deaths_Normal_dim_0 <- append(mean_Deaths_Normal_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_Normal_dim_1 <- append(mean_Deaths_Normal_dim_1, mean(get(paste0("pers_", i, "_ones_death")))) 
+  mean_Deaths_Normal_dim_2 <- append(mean_Deaths_Normal_dim_2, mean(get(paste0("pers_", i, "_twos_death"))))
+
+  if(length(get(paste0("pers_", i, "_zeros_death")) != 1)){
+    sd_Deaths_Normal_dim_0 <- append(sd_Deaths_Normal_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_Normal_dim_0 <- append(sd_Deaths_Normal_dim_0, 50)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+    sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1,80)
+  }
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_Normal_dim_2 <- append(sd_Deaths_Normal_dim_2, sd(get(paste0("pers_", i, "_twos_death"))))
+  }
+  else{
+    sd_Deaths_Normal_dim_2 <- append(sd_Deaths_Normal_dim_2, 30)
+  }
+}
+
+mean_Deaths_AF_dim_0 <- c()
+mean_Deaths_AF_dim_1 <- c()
+mean_Deaths_AF_dim_2 <- c()
+
+sd_Deaths_AF_dim_0 <- c()
+sd_Deaths_AF_dim_1 <- c()
+sd_Deaths_AF_dim_2 <- c()
+
+for(i in af_files){
+  mean_Deaths_AF_dim_0 <- append(mean_Deaths_AF_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_AF_dim_1 <- append(mean_Deaths_AF_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+  mean_Deaths_AF_dim_2 <- append(mean_Deaths_AF_dim_2, mean(get(paste0("pers_", i, "_twos_death"))))
+
+  if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+    sd_Deaths_AF_dim_0 <- append(sd_Deaths_AF_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_AF_dim_0 <- append(sd_Deaths_AF_dim_0, 50)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+    sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, 80)
+  }
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_AF_dim_2 <- append(sd_Deaths_AF_dim_2, sd(get(paste0("pers_", i, "_twos_death"))))
+  }
+  else{
+    sd_Deaths_AF_dim_2 <- append(sd_Deaths_AF_dim_2, 30)
+  }
+}
+
+mean_Deaths_Rand_dim_0 <- c()
+mean_Deaths_Rand_dim_1 <- c()
+mean_Deaths_Rand_dim_2 <- c()
+
+sd_Deaths_Rand_dim_0 <- c()
+sd_Deaths_Rand_dim_1 <- c()
+sd_Deaths_Rand_dim_2 <- c()
+
+for(i in r_files){
+  mean_Deaths_Rand_dim_0 <- append(mean_Deaths_Rand_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_Rand_dim_1 <- append(mean_Deaths_Rand_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+  mean_Deaths_Rand_dim_2 <- append(mean_Deaths_Rand_dim_2, mean(get(paste0("pers_", i, "_twos_death"))))
+
+  if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+    sd_Deaths_Rand_dim_0 <- append(sd_Deaths_Rand_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_Rand_dim_0 <- append(sd_Deaths_Rand_dim_0, 50)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+  sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, 80)
+  }
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_Rand_dim_2 <- append(sd_Deaths_Rand_dim_2, sd(get(paste0("pers_", i, "_twos_death"))))
+  }
+  else{
+    sd_Deaths_Rand_dim_2 <- append(sd_Deaths_Rand_dim_2, 30)
+  }
+}
+
+mean_Deaths_O_dim_0 <- c()
+mean_Deaths_O_dim_1 <- c()
+mean_Deaths_O_dim_2 <- c()
+
+sd_Deaths_O_dim_0 <- c()
+sd_Deaths_O_dim_1 <- c()
+sd_Deaths_O_dim_2 <- c()
+
+for(i in o_files){
+  mean_Deaths_O_dim_0 <- append(mean_Deaths_O_dim_0, mean(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  mean_Deaths_O_dim_1 <- append(mean_Deaths_O_dim_1, mean(get(paste0("pers_", i, "_ones_death"))))
+  mean_Deaths_O_dim_2 <- append(mean_Deaths_O_dim_2, mean(get(paste0("pers_", i, "_twos_death"))))
+
+  if(length(get(paste0("pers_", i, "_zeros_death"))) != 1){
+    sd_Deaths_O_dim_0 <- append(sd_Deaths_O_dim_0, sd(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+  }
+  else{
+    sd_Deaths_O_dim_0 <- append(sd_Deaths_O_dim_0, 50)
+  }
+  if(length(get(paste0("pers_", i, "_ones_death"))) != 1){
+  sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, sd(get(paste0("pers_", i, "_ones_death"))))
+  }
+  else{
+    sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, 80)
+  }
+  if(length(get(paste0("pers_", i, "_twos_death"))) != 1){
+    sd_Deaths_O_dim_2 <- append(sd_Deaths_O_dim_2, sd(get(paste0("pers_", i, "_twos_death"))))
+  }
+  else{
+    sd_Deaths_O_dim_2 <- append(sd_Deaths_O_dim_2, 30)
+  }
+}
+
+
+for(i in pers_bad_index2){
+  if(temp[i,2] == "N"){
+      if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Deaths_Normal_dim_1 <- append(mean_Deaths_Normal_dim_1, 100)
+      sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1, 700)
+    }
+      if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+        mean_Deaths_Normal_dim_2 <- append(mean_Deaths_Normal_dim_2, 300)
+        sd_Deaths_Normal_dim_2 <- append(sd_Deaths_Normal_dim_2, 1000)
+    }
+      if(i %in% pers_bad_index12){ #10000
+        mean_Deaths_Normal_dim_1 <- append(mean_Deaths_Normal_dim_1, 100)
+        mean_Deaths_Normal_dim_2 <- append(mean_Deaths_Normal_dim_2, 300)
+        sd_Deaths_Normal_dim_1 <- append(sd_Deaths_Normal_dim_1, 700)
+        sd_Deaths_Normal_dim_2 <- append(sd_Deaths_Normal_dim_2, 1000)
+    }
+  }
+
+  if(temp[i,2] == "A"){
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+        mean_Deaths_AF_dim_1 <- append(mean_Deaths_AF_dim_1, 100)
+        sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, 700)
+      }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+        mean_Deaths_AF_dim_2 <- append(mean_Deaths_AF_dim_2, 300)
+        sd_Deaths_AF_dim_2 <- append(sd_Deaths_AF_dim_2, 1000)
+      }
+    if(i %in% pers_bad_index12){ #10000
+        mean_Deaths_AF_dim_1 <- append(mean_Deaths_AF_dim_1, 100)
+        mean_Deaths_AF_dim_2 <- append(mean_Deaths_AF_dim_2, 300)
+        sd_Deaths_AF_dim_1 <- append(sd_Deaths_AF_dim_1, 700)
+        sd_Deaths_AF_dim_2 <- append(sd_Deaths_AF_dim_2, 1000)
+    }
+  }
+
+  if(temp[i,2] == "R"){
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Deaths_Rand_dim_1 <- append(mean_Deaths_Rand_dim_1, 100)
+      sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, 700)
+  }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+      mean_Deaths_Rand_dim_2 <- append(mean_Deaths_Rand_dim_2, 300)
+      sd_Deaths_Rand_dim_2 <- append(sd_Deaths_Rand_dim_2, 1000)
+    }
+    if(i %in% pers_bad_index12){ #10000
+      mean_Deaths_Rand_dim_1 <- append(mean_Deaths_Rand_dim_1, 100)
+      mean_Deaths_Rand_dim_2 <- append(mean_Deaths_Rand_dim_2, 300)
+      sd_Deaths_Rand_dim_1 <- append(sd_Deaths_Rand_dim_1, 700)
+      sd_Deaths_Rand_dim_2 <- append(sd_Deaths_Rand_dim_2, 1000)
+    }
+  }
+  if(temp[i,2] == "~"){
+    if(i %in% pers_bad_index1){ #100 is the random statistic assigned to those missing 1 dimensional features.
+      mean_Deaths_O_dim_1 <- append(mean_Deaths_O_dim_1, 100)
+      sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, 700)
+    }
+    if(i %in% pers_bad_index2){ #1000 is the random statistic assigned to those missing 2 dimensional features
+      mean_Deaths_O_dim_2 <- append(mean_Deaths_O_dim_2, 300)
+      sd_Deaths_O_dim_2 <- append(sd_Deaths_O_dim_2, 1000)
+    }
+    if(i %in% pers_bad_index12){ #10000
+      mean_Deaths_O_dim_1 <- append(mean_Deaths_O_dim_1, 100)
+      mean_Deaths_O_dim_2 <- append(mean_Deaths_O_dim_2, 300)
+      sd_Deaths_O_dim_1 <- append(sd_Deaths_O_dim_1, 700)
+      sd_Deaths_O_dim_2 <- append(sd_Deaths_O_dim_2, 1000)
+    }
+  }
+}
+```
+
+##Append data.
+The data is appended in the order of normal, AF, and random.
+```{r}
+#dim0, births
+#Append the means, standard deviations. 
+total_means_births_dim0 <-seq(0,0,length.out=num_pers)
+
+total_sd_births_dim0 <- seq(0,0,length.out=num_pers) 
+
+#dim0, deaths
+#Append the means, standard deviations
+total_means_deaths_dim0 <- append(append(append(mean_Deaths_Normal_dim_0, mean_Deaths_AF_dim_0), mean_Deaths_Rand_dim_0), mean_Deaths_O_dim_0) 
+
+total_sd_deaths_dim0 <- append(append(append(sd_Deaths_Normal_dim_0, sd_Deaths_AF_dim_0), sd_Deaths_Rand_dim_0), sd_Deaths_O_dim_0) 
+
+###################################################################
+ 
+#dim1, births
+#Append the means, standard deviations. 
+total_means_births_dim1 <- append(append(append(mean_Births_Normal_dim_1, mean_Births_AF_dim_1), mean_Births_Rand_dim_1), mean_Births_O_dim_1)
+
+total_sd_births_dim1 <- append(append(append(sd_Births_Normal_dim_1, sd_Births_AF_dim_1), sd_Births_Rand_dim_1), sd_Births_O_dim_1)
+
+#dim1, deaths
+#Append the means, standard deviations
+total_means_deaths_dim1 <- append(append(append(mean_Deaths_Normal_dim_1, mean_Deaths_AF_dim_1), mean_Deaths_Rand_dim_1), mean_Deaths_O_dim_1)
+
+total_sd_deaths_dim1 <- append(append(append(sd_Deaths_Normal_dim_1, sd_Deaths_AF_dim_1), sd_Deaths_Rand_dim_1), sd_Deaths_O_dim_1)
+
+###################################################################
+
+#dim2, births
+#Append the means, standard deviations. 
+total_means_births_dim2 <- append(append(append(mean_Births_Normal_dim_2, mean_Births_AF_dim_2), mean_Births_Rand_dim_2), mean_Births_O_dim_2)
+
+total_sd_births_dim2 <- append(append(append(sd_Births_Normal_dim_2, sd_Births_AF_dim_2), sd_Births_Rand_dim_2), sd_Births_O_dim_2)
+
+#dim2, deaths
+#Append the means, standard deviations 
+total_means_deaths_dim2 <- append(append(append(mean_Deaths_Normal_dim_2, mean_Deaths_AF_dim_2), mean_Deaths_Rand_dim_2), mean_Deaths_O_dim_2)
+
+total_sd_deaths_dim2 <- append(append(append(sd_Deaths_Normal_dim_2, sd_Deaths_AF_dim_2), sd_Deaths_Rand_dim_2), sd_Deaths_O_dim_2)
+
+```
+##The good mistake: Reappend and get yo fucking shit together 
+```{r}
+################################ dim 0 ################################  
+total_means_births_dim0 <-seq(0,0,length.out=num_pers)
+total_sd_births_dim0 <- seq(0,0,length.out=num_pers) 
+
+total_means_deaths_dim0 <- c()
+total_sd_deaths_dim0 <-c()
+
+#Store the death 0 dimensional means.
+for(i in seq(length(labels))){ #Organize the death means of 0 dimension.
+  print(i)
+  if(i %in% normal_files){
+    total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_Normal_dim_0[i])
+  }
+  if(i %in% af_files){
+    total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_AF_dim_0[i])
+  }
+  if(i %in% r_files){
+    total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_Rand_dim_0[i])
+  }
+  if(i %in% o_files){
+    total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_O_dim_0[i])
+  }
+  if(i %in% pers_bad_index2){
+    if(temp[i,2] == "N"){
+      total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_Normal_dim_0[i])
+    }
+    if(temp[i,2] == "A"){
+      total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_AF_dim_0[i])
+    }
+    if(temp[i,2] == "~"){
+      total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_Rand_dim_0[i])
+    }
+    if(temp[i,2] == "O"){
+      total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_O_dim_0[i])
+    }
+  }
+}
+
+#Store the death 0 dimensional sd.
+for(i in seq(length(labels))){ #Organize the deaht sd of 0 dimension.
+  print(i)
+  if(i %in% normal_files){
+    total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_Normal_dim_0[i])
+  }
+  if(i %in% af_files){
+    total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_AF_dim_0[i])
+  }
+  if(i %in% r_files){
+    total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_Rand_dim_0[i])
+  }
+  if(i %in% o_files){
+    total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_O_dim_0[i])
+  }
+  if(i %in% pers_bad_index2){
+    if(temp[i,2] == "N"){
+      total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_Normal_dim_0[i])
+    }
+    if(temp[i,2] == "A"){
+      total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_AF_dim_0[i])
+    }
+    if(temp[i,2] == "~"){
+      total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_Rand_dim_0[i])
+    }
+    if(temp[i,2] == "O"){
+      total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_O_dim_0[i])
+    }  
+}
+}
+
+################################ dim 1 ################################ 
+total_means_births_dim1 <- c()
+total_sd_births_dim1 <- c()
+total_means_deaths_dim1 <- c()
+total_sd_deaths_dim1 <- c()
+
+#Store the birth 1 dimensional means.
+for(i in seq(length(labels))){
+  if(i %in% normal_files){
+    total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_Normal_dim_1[i])
+  }
+  if(i %in% af_files){
+    total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_AF_dim_1[i])
+  }
+  if(i %in% r_files){
+    total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_Rand_dim_1[i])
+  }
+  if(i %in% o_files){
+    total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_O_dim_1[i])
+  }
+  if(i %in% pers_bad_index2){
+    if(temp[i,2] == "N"){
+      total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_Normal_dim_1[i])
+    }
+    if(temp[i,2] == "A"){
+      total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_AF_dim_1[i])
+    }
+    if(temp[i,2] == "~"){
+      total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_Rand_dim_1[i])
+    }
+    if(temp[i,2] == "O"){
+      total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_O_dim_1[i])
+    }  
+}
+}
+
+#Store the birth 1 dimensional sd.
+for(i in seq(length(labels))){ 
+  if(i %in% normal_files){
+    total_sd_births_dim1 <- append(total_sd_births_dim1, sd_Births_Normal_dim_1[i])
+  }
+  if(i %in% af_files){
+    total_sd_births_dim1 <- append(total_sd_births_dim1, mean_Births_AF_dim_1[i])
+  }
+  if(i %in% r_files){
+    total_sd_births_dim1 <- append(total_sd_births_dim1, mean_Births_Rand_dim_1[i])
+  }
+  if(i %in% o_files){
+    total_sd_births_dim1 <- append(total_sd_births_dim1, mean_Births_O_dim_1[i])
+  }
+  if(i %in% pers_bad_index2){
+    if(temp[i,2] == "N"){
+      total_sd_births_dim1 <- append(total_sd_births_dim1, sd_Births_Normal_dim_1[i])
+    }
+    if(temp[i,2] == "A"){
+      total_sd_births_dim1 <- append(total_sd_births_dim1, sd_Births_AF_dim_1[i])
+    }
+    if(temp[i,2] == "~"){
+      total_sd_births_dim1 <- append(total_sd_births_dim1, sd_Births_Rand_dim_1[i])
+    }
+    if(temp[i,2] == "O"){
+      total_sd_births_dim1 <- append(total_sd_births_dim1, sd_Births_O_dim_1[i])
+    }  
+}
+}
+
+#Store the death 1 dimensional means.
+for(i in seq(length(labels))){ 
+  print(i)
+  if(i %in% normal_files){
+    total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Deaths_Normal_dim_1[i])
+  }
+  if(i %in% af_files){
+    total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Deaths_AF_dim_1[i])
+  }
+  if(i %in% r_files){
+    total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Deaths_Rand_dim_1[i])
+  }
+  if(i %in% o_files){
+    total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Deaths_O_dim_1[i])
+  }
+  if(i %in% pers_bad_index2){
+    if(temp[i,2] == "N"){
+      total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Deaths_Normal_dim_1[i])
+    }
+    if(temp[i,2] == "A"){
+      total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Deaths_AF_dim_1[i])
+    }
+    if(temp[i,2] == "~"){
+      total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Deaths_Rand_dim_1[i])
+    }
+    if(temp[i,2] == "O"){
+      total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Deaths_O_dim_1[i])
+    }  
+}
+  
+}
+
+#Store the birth 1 dimensional sd.
+for(i in seq(length(labels))){ 
+  if(i %in% normal_files){
+    total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_Normal_dim_1[i])
+  }
+  if(i %in% af_files){
+    total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_AF_dim_1[i])
+  }
+  if(i %in% r_files){
+    total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_Rand_dim_1[i])
+  }
+  if(i %in% o_files){
+    total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_O_dim_1[i])
+  }
+  if(i %in% pers_bad_index2){
+    if(temp[i,2] == "N"){
+      total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_Normal_dim_1[i])
+    }
+    if(temp[i,2] == "A"){
+      total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_AF_dim_1[i])
+    }
+    if(temp[i,2] == "~"){
+      total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_Rand_dim_1[i])
+    }
+    if(temp[i,2] == "O"){
+      total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_O_dim_1[i])
+    }  
+}
+}
+
+################################ dim 2 ################################ 
+total_means_births_dim2 <- c()
+total_sd_births_dim2 <- c()
+
+total_means_deaths_dim2 <- c()
+total_sd_deaths_dim2 <- c()
+
+#Store the birth 2 dimensional means.
+for(i in seq(length(labels))){
+  if(i %in% normal_files){
+    total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_Normal_dim_2[i])
+  }
+  if(i %in% af_files){
+    total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_AF_dim_2[i]) 
+  }
+  if(i %in% r_files){
+    total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_Rand_dim_2[i])
+  }
+  if(i %in% o_files){
+    total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_O_dim_2[i])
+  }
+  if(i %in% pers_bad_index2){
+    if(temp[i,2] == "N"){
+      total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_Normal_dim_2[i])
+    }
+    if(temp[i,2] == "A"){
+      total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_AF_dim_2[i]) 
+    }
+    if(temp[i,2] == "~"){
+      total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_Rand_dim_2[i])
+    }
+    if(temp[i,2] == "O"){
+      total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_O_dim_2[i])
+    }  
+}
+}
+
+#Store the birth 2 dimesional sd.
+for(i in seq(length(labels))){ 
+  if(i %in% normal_files){
+    total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_Normal_dim_2[i])
+  }
+  if(i %in% af_files){
+    total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_AF_dim_2[i]) 
+  }
+  if(i %in% r_files){
+    total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_Rand_dim_2[i])
+  }
+  if(i %in% o_files){
+    total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_O_dim_2[i])
+  }
+  if(i %in% pers_bad_index2){
+    if(temp[i,2] == "N"){
+      total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_Normal_dim_2[i])
+    }
+    if(temp[i,2] == "A"){
+      total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_AF_dim_2[i]) 
+    }
+    if(temp[i,2] == "~"){
+      total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_Rand_dim_2[i])
+    }
+    if(temp[i,2] == "O"){
+      total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_O_dim_2[i])
+    }  
+}
+}
+
+#Store the death 2 dimensional means
+for(i in seq(length(labels))){ 
+  if(i %in% normal_files){
+    total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_Normal_dim_2[i])
+  }
+  if(i %in% af_files){
+    total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_AF_dim_2[i])
+  }
+  if(i %in% r_files){
+    total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_Rand_dim_2[i])
+  }
+  if(i %in% o_files){
+    total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_O_dim_2[i])
+  }
+  if(i %in% pers_bad_index2){
+    if(temp[i,2] == "N"){
+      total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_Normal_dim_2[i])
+    }
+    if(temp[i,2] == "A"){
+      total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_AF_dim_2[i])
+    }
+    if(temp[i,2] == "~"){
+      total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_Rand_dim_2[i])
+    }
+    if(temp[i,2] == "O"){
+      total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_O_dim_2[i])
+    }  
+}
+}
+
+#Store the death 2 dimensional sd.
+for(i in seq(length(labels))){  
+  if(i %in% normal_files){
+    total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_Normal_dim_2[i])
+  }
+  if(i %in% af_files){
+    total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_AF_dim_2[i])
+  }
+  if(i %in% r_files){
+    total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_Rand_dim_2[i])
+  }
+  if(i %in% o_files){
+    total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_O_dim_2[i])
+  }
+  if(i %in% pers_bad_index2){
+    if(temp[i,2] == "N"){
+      total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_Normal_dim_2[i])
+    }
+    if(temp[i,2] == "A"){
+      total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_AF_dim_2[i])
+    }
+    if(temp[i,2] == "~"){
+      total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_Rand_dim_2[i])
+    }
+    if(temp[i,2] == "O"){
+      total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_O_dim_2[i])
+    }  
+}
+}
+```
+##HOLD
+```{r}
+# ################################ dim 0 ################################  
+# total_means_births_dim0 <-seq(0,0,length.out=num_pers)
+# total_sd_births_dim0 <- seq(0,0,length.out=num_pers) 
+# 
+# total_means_deaths_dim0 <- c()
+# total_sd_deaths_dim0 <-c()
+# 
+# #Store the death 0 dimensional means.
+# for(i in seq(length(labels))){ #Organize the death means of 0 dimension.
+#   print(i)
+#   if(temp[i,1] == temp[normal_files[i], 1]){
+#     total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_Normal_dim_0[i])
+#   }
+#   if(i %in% af_files){
+#     total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_AF_dim_0[i])
+#   }
+#   if(temp[i,1] == temp[r_files[i], 1]){
+#     total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_Rand_dim_0[i])
+#   }
+#   if(temp[i,1] == temp[o_files[i], 1]){
+#     total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_O_dim_0[i])
+#   }
+#   if(temp[i, 1] == temp[pers_bad_index2[i], 1]){
+#     if(temp[i,2] == "N"){
+#       total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_Normal_dim_0[i])
+#     }
+#     if(temp[i,2] == "A"){
+#       total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_AF_dim_0[i])
+#     }
+#     if(temp[i,2] == "~"){
+#       total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_Rand_dim_0[i])
+#     }
+#     if(temp[i,2] == "O"){
+#       total_means_deaths_dim0 <- append(total_means_deaths_dim0, mean_Deaths_O_dim_0[i])
+#     }
+#   }
+# }
+# 
+# #Store the death 0 dimensional sd.
+# for(i in seq(length(labels))){ #Organize the deaht sd of 0 dimension.
+#   print(i)
+#   if(temp[i,1] == temp[normal_files[i],1]){
+#     total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_Normal_dim_0[i])
+#   }
+#   if(temp[i,1] == temp[af_files[i], 1]){
+#     total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_AF_dim_0[i])
+#   }
+#   if(temp[i,1] == temp[r_files[i],1]){
+#     total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_Rand_dim_0[i])
+#   }
+#   if(temp[i,1] == temp[o_files[i],1]){
+#     total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_O_dim_0[i])
+#   }
+#   if(temp[i, 1] == temp[pers_bad_index2[i],1]){
+#     if(temp[i,2] == "N"){
+#       total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_Normal_dim_0[i])
+#     }
+#     if(temp[i,2] == "A"){
+#       total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_AF_dim_0[i])
+#     }
+#     if(temp[i,2] == "~"){
+#       total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_Rand_dim_0[i])
+#     }
+#     if(temp[i,2] == "O"){
+#       total_sd_deaths_dim0 <- append(total_sd_deaths_dim0, sd_Deaths_O_dim_0[i])
+#     }  
+# }
+# }
+# 
+# ################################ dim 1 ################################ 
+# total_means_births_dim1 <- c()
+# total_sd_births_dim1 <- c()
+# total_means_deaths_dim1 <- c()
+# total_sd_deaths_dim1 <- c()
+# 
+# #Store the birth 1 dimensional means.
+# for(i in seq(length(labels))){
+#   if(temp[i,1] == temp[normal_files[i],1]){
+#     total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_Normal_dim_1[i])
+#   }
+#   if(temp[i,1] == temp[af_files[i],1]){
+#     total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_AF_dim_1[i])
+#   }
+#   if(temp[i,1] == temp[r_files[i],1]){
+#     total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_Rand_dim_1[i])
+#   }
+#   if(temp[i,1] == temp[o_files[i],1]){
+#     total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_O_dim_1[i])
+#   }
+#   if(temp[i, 1] == temp[pers_bad_index2[i],1]){
+#     if(temp[i,2] == "N"){
+#       total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_Normal_dim_1[i])
+#     }
+#     if(temp[i,2] == "A"){
+#       total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_AF_dim_1[i])
+#     }
+#     if(temp[i,2] == "~"){
+#       total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_Rand_dim_1[i])
+#     }
+#     if(temp[i,2] == "O"){
+#       total_means_births_dim1 <- append(total_means_births_dim1, mean_Births_O_dim_1[i])
+#     }  
+# }
+# }
+# 
+# #Store the birth 1 dimensional sd.
+# for(i in seq(length(labels))){ 
+#   if(temp[i,1] == temp[normal_files[i],1]){
+#     total_sd_births_dim1 <- append(total_sd_births_dim1, sd_Births_Normal_dim_1[i])
+#   }
+#   if(temp[i,1] == temp[af_files[i],1]){
+#     total_sd_births_dim1 <- append(total_sd_births_dim1, mean_Births_AF_dim_1[i])
+#   }
+#   if(temp[i,1] == temp[r_files[i],1]){
+#     total_sd_births_dim1 <- append(total_sd_births_dim1, mean_Births_Rand_dim_1[i])
+#   }
+#   if(temp[i,1] == temp[o_files[i],1]){
+#     total_sd_births_dim1 <- append(total_sd_births_dim1, mean_Births_O_dim_1[i])
+#   }
+#   if(temp[i, 1] == temp[pers_bad_index2[i],1]){
+#     if(temp[i,2] == "N"){
+#       total_sd_births_dim1 <- append(total_sd_births_dim1, sd_Births_Normal_dim_1[i])
+#     }
+#     if(temp[i,2] == "A"){
+#       total_sd_births_dim1 <- append(total_sd_births_dim1, sd_Births_AF_dim_1[i])
+#     }
+#     if(temp[i,2] == "~"){
+#       total_sd_births_dim1 <- append(total_sd_births_dim1, sd_Births_Rand_dim_1[i])
+#     }
+#     if(temp[i,2] == "O"){
+#       total_sd_births_dim1 <- append(total_sd_births_dim1, sd_Births_O_dim_1[i])
+#     }  
+# }
+# }
+# 
+# #Store the death 1 dimensional means.
+# for(i in seq(length(labels))){ 
+#   if(temp[i,1] == temp[normal_files[i],1]){
+#     total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Deaths_Normal_dim_1[i])
+#   }
+#   if(temp[i,1] == temp[af_files[i],1]){
+#     total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Deaths_AF_dim_1[i])
+#   }
+#   if(temp[i,1] == temp[r_files[i],1]){
+#     total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Death_Rand_dim_1[i])
+#   }
+#   if(temp[i,1] == temp[o_files[i],1]){
+#     total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Deaths_O_dim_1[i])
+#   }
+#   if(temp[i, 1] ==  temp[pers_bad_index2[i],1]){
+#     if(temp[i,2] == "N"){
+#       total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Deaths_Normal_dim_1[i])
+#     }
+#     if(temp[i,2] == "A"){
+#       total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Deaths_AF_dim_1[i])
+#     }
+#     if(temp[i,2] == "~"){
+#       total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Death_Rand_dim_1[i])
+#     }
+#     if(temp[i,2] == "O"){
+#       total_means_deaths_dim1 <- append(total_means_deaths_dim1, mean_Deaths_O_dim_1[i])
+#     }  
+# }
+#   
+# }
+# 
+# #Store the birth 1 dimensional sd.
+# for(i in seq(length(labels))){ 
+#   if(temp[i,1] == temp[normal_files[i],1]){
+#     total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_Normal_dim_1[i])
+#   }
+#   if(temp[i,1] == temp[af_files[i],1]){
+#     total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_AF_dim_1[i])
+#   }
+#   if(temp[i,1] == temp[r_files[i],1]){
+#     total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_Rand_dim_1[i])
+#   }
+#   if(temp[i,1] == temp[o_files[i],1]){
+#     total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_O_dim_1[i])
+#   }
+#   if(temp[i, 1] == temp[pers_bad_index2[i],1]){
+#     if(temp[i,2] == "N"){
+#       total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_Normal_dim_1[i])
+#     }
+#     if(temp[i,2] == "A"){
+#       total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_AF_dim_1[i])
+#     }
+#     if(temp[i,2] == "~"){
+#       total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_Rand_dim_1[i])
+#     }
+#     if(temp[i,2] == "O"){
+#       total_sd_deaths_dim1 <- append(total_sd_deaths_dim1, sd_Deaths_O_dim_1[i])
+#     }  
+# }
+# }
+# 
+# ################################ dim 2 ################################ 
+# total_means_births_dim2 <- c()
+# total_means_deaths_dim2 <- c()
+# 
+# total_means_deaths_dim2 <- c()
+# total_sd_deaths_dim2 <- c()
+# #Store the birth 2 dimensional means.
+# for(i in seq(length(labels))){
+#   if(temp[i,1] == temp[normal_files[i],1]){
+#     total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_Normal_dim_2[i])
+#   }
+#   if(temp[i,1] == temp[af_files[i],1]){
+#     total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_AF_dim_2[i]) 
+#   }
+#   if(temp[i,1] ==  temp[r_files[i],1]){
+#     total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_Rand_dim_2[i])
+#   }
+#   if(temp[i,1] == temp[o_files[i],1]){
+#     total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_O_dim_2[i])
+#   }
+#   if(temp[i, 1] == temp[pers_bad_index2[i],1]){
+#     if(temp[i,2] == "N"){
+#       total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_Normal_dim_2[i])
+#     }
+#     if(temp[i,2] == "A"){
+#       total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_AF_dim_2[i]) 
+#     }
+#     if(temp[i,2] == "~"){
+#       total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_Rand_dim_2[i])
+#     }
+#     if(temp[i,2] == "O"){
+#       total_means_births_dim2 <- append(total_means_births_dim2, mean_Births_O_dim_2[i])
+#     }  
+# }
+# }
+# 
+# #Store the birth 2 dimesional sd.
+# for(i in seq(length(labels))){ 
+#   if(temp[i,1] == temp[normal_files[i],1]){
+#     total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_Normal_dim_2[i])
+#   }
+#   if(temp[i,1] == temp[af_files[i],1]){
+#     total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_AF_dim_2[i]) 
+#   }
+#   if(temp[i,1] ==  temp[r_files[i],1]){
+#     total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_Rand_dim_2[i])
+#   }
+#   if(temp[i,1] == temp[o_files[i],1]){
+#     total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_O_dim_2[i])
+#   }
+#   if(temp[i, 1] == temp[pers_bad_index2[i],1]){
+#     if(temp[i,2] == "N"){
+#       total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_Normal_dim_2[i])
+#     }
+#     if(temp[i,2] == "A"){
+#       total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_AF_dim_2[i]) 
+#     }
+#     if(temp[i,2] == "~"){
+#       total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_Rand_dim_2[i])
+#     }
+#     if(temp[i,2] == "O"){
+#       total_sd_births_dim2 <- append(total_sd_births_dim2, sd_Births_O_dim_2[i])
+#     }  
+# }
+# }
+# 
+# #Store the death 2 dimensional means
+# for(i in seq(length(labels))){ 
+#   if(temp[i,1] == temp[normal_files[i],1]){
+#     total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_Normal_dim_2[i])
+#   }
+#   if(temp[i,1] == temp[af_files[i],1]){
+#     total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_AF_dim_2[i])
+#   }
+#   if(temp[i,1] ==  temp[r_files[i],1]){
+#     total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_Rand_dim_2[i])
+#   }
+#   if(temp[i,1] == temp[o_files[i],1]){
+#     total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_O_dim_2[i])
+#   }
+#   if(temp[i, 1] == temp[pers_bad_index2[i],1]){
+#     if(temp[i,2] == "N"){
+#       total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_Normal_dim_2[i])
+#     }
+#     if(temp[i,2] == "A"){
+#       total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_AF_dim_2[i])
+#     }
+#     if(temp[i,2] == "~"){
+#       total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_Rand_dim_2[i])
+#     }
+#     if(temp[i,2] == "O"){
+#       total_means_deaths_dim2 <- append(total_means_deaths_dim2, mean_Deaths_O_dim_2[i])
+#     }  
+# }
+# }
+# 
+# #Store the death 2 dimensional sd.
+# for(i in seq(length(labels))){  
+#   if(temp[i,1] == temp[normal_files[i],1]){
+#     total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_Normal_dim_2[i])
+#   }
+#   if(temp[i,1] == temp[af_files[i],1]){
+#     total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_AF_dim_2[i])
+#   }
+#   if(temp[i,1] ==  temp[r_files[i],1]){
+#     total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_Rand_dim_2[i])
+#   }
+#   if(temp[i,1] == temp[o_files[i],1]){
+#     total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_O_dim_2[i])
+#   }
+#   if(temp[i,1] == temp[pers_bad_index2[i],1]){
+#     if(temp[i,2] == "N"){
+#       total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_Normal_dim_2[i])
+#     }
+#     if(temp[i,2] == "A"){
+#       total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_AF_dim_2[i])
+#     }
+#     if(temp[i,2] == "~"){
+#       total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_Rand_dim_2[i])
+#     }
+#     if(temp[i,2] == "O"){
+#       total_sd_deaths_dim2 <- append(total_sd_deaths_dim2, sd_Deaths_O_dim_2[i])
+#     }  
+# }
+# }
+```
+
+##Organize mean, sd data into dataframe
+```{r}
+export_dim0 <- data.frame("Means_dim0_birth" = total_means_births_dim0, "Means_dim0_death" = total_means_deaths_dim0, "sd_dim0_birth" = total_sd_births_dim0, "sd_dim0_death" = total_sd_deaths_dim0)
+
+export_dim1 <- data.frame("Means_dim1_birth" = total_means_births_dim1, "Means_dim1_death" = total_means_deaths_dim1, "sd_dim1_birth" = total_sd_births_dim1, "sd_dim1_death" = total_sd_deaths_dim1)
+ 
+export_dim2 <- data.frame("Means_dim2_birth" = total_means_births_dim2, "Means_dim2_death" = total_means_deaths_dim2, "sd_dim2_birth" = total_sd_births_dim2, "sd_dim2_death" = total_sd_deaths_dim2)
+```
+
+```{r}
+write.csv(export_dim0, "Organized_Mean_sd_dimension_0.csv") 
+write.csv(export_dim1, "Organized_Mean_sd_dimension_1.csv") 
+write.csv(export_dim2, "Organized_Mean_sd_dimension_2.csv")
+
+```
+
+##Calculate sum of lifetimes
+The lifetimes are summed across the dimensions per each persistence diagram.
+```{r} 
+#Lifetimes for d imension 0 
+lifetimes_dim0 <- c()
+for(i in seq(num_pers)){
+  lifetime <- sum(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)])
+  lifetimes_dim0 <- append(lifetimes_dim0, lifetime)
+}
+
+#Lifetimes for dimension 1.
+lifetimes_dim1 <- c()
+for(i in seq(num_pers)){
+  lifetime <- sum(get(paste0("pers_", i, "_ones_death"))) - sum(get((paste0("pers_", i, "_ones_birth"))))
+  lifetimes_dim1 <- append(lifetimes_dim1, lifetime)
+}
+
+#Lifetimes for dimension 2.
+lifetimes_dim2 <- c()
+for(i in seq(num_pers)){
+  if(i %in% good_pers_index){
+    lifetime <- sum((get(paste0("pers_", i, "_twos_death")))) - sum(get((paste0("pers_", i, "_twos_birth"))))
+    lifetimes_dim2 <- append(lifetimes_dim2, lifetime)
+  }
+  
+  else{
+    lifetime <- 400
+    lifetimes_dim2 <- append(lifetimes_dim2, lifetime)
+  }
+}
+```
+
+##Oraganize lifetime data into a dataframe, export as CSV.
+```{r} 
+lifetimedata <- data.frame("Lifetime_dim0" = lifetimes_dim0, "Lifetime_dim1" = lifetimes_dim1, "Lifetime_dim2" = lifetimes_dim2)
+write.csv(lifetimedata, file = "Lifetimes_dim_0_1_2.csv")
+```
+
+##Caclulate maximum hole lifetimes
+Calculates the maximum lifetime of each feature across all dimensions per persistence diagram.
+```{r} 
+maxs_dim0 <- c()
+for(i in seq(nump_pers)){
+  hold_lifetimes <- c()
+  print(i)
+  for(j in seq(length(get(paste0("pers_", i, "_zeros_death"))))){
+    hold_lifetimes <- append(hold_lifetimes, (get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+    }
+ 
+   maxs_dim0 <- append(maxs_dim0, max(hold_lifetimes))
+} 
+
+maxs_dim1 <- c()
+for(i in seq(num_pers)){
+  hold_lifetimes <- c()
+  print(i) 
+  for(j in seq(length(get(paste0("pers_", i, "_ones_death"))))){
+    hold_lifetimes <- append(hold_lifetimes, (get(paste0("pers_", i, "_ones_death"))[j] - get(paste0("pers_", i, "_ones_birth"))))
+    }
+ 
+   maxs_dim1 <- append(maxs_dim1, max(hold_lifetimes))
+}
+maxs_dim2 <- c()
+for(i in seq(num_pers)){
+  hold_lifetimes <- c()
+  print(i)
+  for(j in seq(length(get(paste0("pers_", i, "_twos_death"))))){
+    hold_lifetimes <- append(hold_lifetimes, (get(paste0("pers_", i, "_twos_death"))[j] - get(paste0("pers_", i, "_twos_birth"))))
+    }
+ 
+   maxs_dim2 <- append(maxs_dim2, max(hold_lifetimes))
+}
+```
+
+##Convert to dataframe, export as CSV.
+```{r}
+max_lifetimes <- data.frame("Max_life_dim0" = maxs_dim0, "Max_life_dim1" = maxs_dim1, "Max_life_dim2" = maxs_dim2)
+write.csv(max_lifetimes, file = "Maximum_lifetimes_all_dims.csv")
+```
+
+##Calculate the skewness for births, deaths
+Calculates the skewness across the births for dimensions 1, 2 and deaths for dimensions 0,1,2 per persistence diagram.
+```{r} 
+###################################Births#########################################
+skewness_births_dim0 <- seq(0,0, length.out = num_pers)
+
+skewness_births_dim1 <- c()
+for(i in seq(num_pers)){
+  if(i %in% good_pers_index){
+    hold_pers <- get(paste0("pers_", i, "_ones_birth"))
+    if(!(length(hold_pers) <= 1) ){
+    skewness_births_dim1 <- append(skewness_births_dim1, skewness(hold_pers))
+    }
+    if(length(hold_pers)<= 1){
+      skewness_births_dim1 <- append(skewness_births_dim1, 80)
+    }
+  }
+  if(i %in% pers_bad_index2){
+    skewness_births_dim1 <- append(skewness_births_dim1, 30)
+  }
+}
+
+skewness_births_dim2 <- c()
+for(i in seq(num_pers)){
+  if(i %in% good_pers_index){
+    hold_pers <- get(paste0("pers_", i, "_twos_birth"))
+    if( !(length(hold_pers) <= 1) ){
+      skewness_births_dim2 <- append(skewness_births_dim2, skewness(hold_pers))
+    }
+    if(length(hold_pers) <= 1){
+      skewness_births_dim2 <- append(skewness_births_dim2, 40)
+    }
+  }
+  if(i %in% pers_bad_index2){
+    skewness_births_dim2 <- append(skewness_births_dim2, 100)
+  }
+}  
+###################################Deaths#########################################
+
+skewness_deaths_dim0 <- c()
+for(i in seq(num_pers)){
+  hold_pers <- get(paste0("pers_", i, "_zeros_death"))
+  if( !(length(hold_pers) <= 1) ){    
+    skewness_deaths_dim0 <- append(skewness_deaths_dim0, skewness(hold_pers[1:(length(hold_pers)-1)]))
+  }
+}
+
+skewness_deaths_dim1 <- c()
+for(i in seq(num_pers)){
+  if(i %in% good_pers_index){
+    hold_pers <- get(paste0("pers_", i, "_ones_death"))
+    if( !(length(hold_pers) <= 1) ){    
+      skewness_deaths_dim1 <- append(skewness_deaths_dim1, skewness(hold_pers))
+    }
+  }
+  if(i %in% pers_bad_index2){
+    skewness_deaths_dim1 <- append(skewness_deaths_dim1, 60)
+  }
+}
+  
+skewness_deaths_dim2 <- c()
+for(i in seq(num_pers)){
+  if(i %in% good_pers_index){
+    hold_pers <- get(paste0("pers_", i, "_twos_death"))
+    if( !(length(hold_pers) <= 1) ){    
+      skewness_deaths_dim2 <- append(skewness_deaths_dim2, skewness(hold_pers))
+    }
+    if( length(hold_pers) <= 1){
+      skewness_deaths_dim2 <- append(skewness_deaths_dim2, 130)
+    }
+  }
+    if(i %in% pers_bad_index2){
+      print(i)
+      skewness_deaths_dim2 <- append(skewness_deaths_dim2, 200)
+  }
+}
+```
+
+##Calculate the kurtosis for births, deaths
+Calculates the kurtosis value across the births for dimension 1, 2 and deaths for dimensions 0, 1, 2 per persistence diagram.
+```{r} 
+#########################Births############################
+kurtosis_births_dim0 <- seq(0, 0, length.out = seq(num_pers))
+
+kurtosis_births_dim1 <- c()
+for(i in seq(num_pers)){
+  if(i %in% good_pers_index){
+    hold_pers <- get(paste0("pers_", i, "_ones_birth"))
+    if(!(length(hold_pers) <= 1) ){
+      kurtosis_births_dim1 <- append(kurtosis_births_dim1, kurtosis(hold_pers))
+    }
+    if(length(hold_pers) <= 1){
+      kurtosis_births_dim1 <- append(kurtosis_births_dim1, 300)
+    }
+  }
+  if(i %in% pers_bad_index2){
+    kurtosis_births_dim1 <- append(kurtosis_births_dim1, 500)
+  }
+}
+
+kurtosis_births_dim2 <- c()
+for(i in seq(num_pers)){
+  if(i %in% good_pers_index){
+    hold_pers <- get(paste0("pers_", i, "_twos_birth"))
+    if(!(length(hold_pers) <= 1) ){
+      kurtosis_births_dim2 <- append(kurtosis_births_dim2, kurtosis(hold_pers))
+    }
+    if((length(hold_pers)) <= 1){
+      kurtosis_births_dim2 <- append(kurtosis_births_dim2, 300)
+    }
+  }
+  if(i %in% pers_bad_index2){
+    kurtosis_births_dim2 <- append(kurtosis_births_dim2, 900)
+  }
+}
+#########################Deaths############################
+kurtosis_deaths_dim0 <- c()
+for(i in seq(num_pers)){
+  hold_pers <- get(paste0("pers_", i, "_zeros_death"))
+  if(!(length(hold_pers) <= 1) ){
+    kurtosis_deaths_dim0 <- append(kurtosis_deaths_dim0, kurtosis(hold_pers[1:(length(hold_pers)-1)]))
+  } 
+}
+
+kurtosis_deaths_dim1 <- c()
+for(i in seq(num_pers)){
+  hold_pers <- get(paste0("pers_", i, "_ones_death"))
+  if(!(length(hold_pers) <= 1) ){
+    kurtosis_deaths_dim1 <- append(kurtosis_deaths_dim1, kurtosis(hold_pers))
+  }
+  if(length(hold_pers) <= 1){
+   kurtosis_deaths_dim1 <- append(kurtosis_deaths_dim1, 200) 
+  }
+}
+
+kurtosis_deaths_dim2 <- c()
+for(i in seq(num_pers)){
+  if(i %in% good_pers_index){
+    hold_pers <- get(paste0("pers_", i, "_twos_death"))
+    if(!(length(hold_pers) <= 1) ){
+      kurtosis_deaths_dim2 <- append(kurtosis_deaths_dim2, kurtosis(hold_pers))
+    }
+    if((length(hold_pers) <= 1)){
+      kurtosis_deaths_dim2 <- append(kurtosis_deaths_dim2, 400)
+    }
+  }
+  if(i %in% pers_bad_index2){
+    kurtosis_deaths_dim2 <- append(kurtosis_deaths_dim2, 1000)
+  }
+}
+```
+
+##Store skewness, kurtosis in dataframe, export as CSV.
+```{r} 
+skewness_birth_dims <- data.frame("skew birth dim0" = skewness_births_dim0, "skew birth dim1" = skewness_births_dim1, "skew birth dim2" = skewness_births_dim2)
+
+skewness_death_dims <- data.frame("skew death dim0" = skewness_deaths_dim0, "skew death dim1" = skewness_deaths_dim1, "skew death dim2" = skewness_deaths_dim2)
+
+kurtosis_birth_dims <- data.frame("kurt birth dim0" = kurtosis_births_dim0, "kurt birth dim1" = kurtosis_births_dim1, "kurt birth dim2" = kurtosis_births_dim2)
+
+kurtosis_death_dims <- data.frame("kurt death dim0" = kurtosis_deaths_dim0, "kurt death dim0" = kurtosis_deaths_dim1, "kurt death dim1" = kurtosis_deaths_dim2)
+
+write.csv(skewness_birth_dims, file = "skewness_birth_dim012.csv")
+write.csv(skewness_death_dims, file = "skewness_death_dim012.csv")
+write.csv(kurtosis_birth_dims, file = "kurtosis_birth_dim012.csv")
+write.csv(kurtosis_death_dims, file = "kurtosis_death_dim012.csv")
+```
+
