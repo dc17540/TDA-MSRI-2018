@@ -1,0 +1,560 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+```{R}
+library(sets)
+library(moments)
+```
+
+#Load reference labels
+```{r}
+temp <- as.matrix(read.csv("/Users/luke/Desktop/REFERENCE-v3.csv", header = F)) 
+```
+
+#Load and store the persistence diagrams into the global environment.
+```{r} 
+directory <-"/Users/luke/Desktop/Cor_Rest_of_points_dim012/"
+
+load_persistence_variable <- function(directory, labels, n){
+  return(as.matrix(read.csv(file = paste0(directory, "rest_of_points", temp[n], ".csv")), header = T)[,-1])
+}
+
+pers_index_start <- 6001
+pers_index_end <- 8528
+#For loop will generate persistence variables.
+
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  print(i)
+  assign(paste0("persistence", i), load_persistence_variable(directory, labels, i))
+}
+```
+
+#Counting Dimensions
+Unimportant helper function. Counts the number of zeros, ones and two dimensional features in the persistence diagrams, given whatever persistence diagram you want.
+```{r} 
+Counting_Dimensions <- function(n){
+  tempFrame <- data.frame("Dimension" = get(paste0("persistence", n))[,1], "Birth" = get(paste0("persistence", n))[,2], "Death" = get(paste0("persistence", n))[,3])  
+  return(table(tempFrame$Dimension))
+}
+```
+
+#Extract noise.
+```{r} 
+good_pers_index <- c()
+pers_bad_index0 <- c()
+pers_bad_index1 <- c()
+pers_bad_index2 <- c()
+pers_bad_index12 <- c()
+
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  if(!is.na(Counting_Dimensions(i)[1]) & !is.na(Counting_Dimensions(i)[2]) & !is.na(Counting_Dimensions(i)[3]) ){
+    good_pers_index <- append(good_pers_index, i)
+  }
+}
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  if(is.na(Counting_Dimensions(i)[1])){
+    pers_bad_index0 <- append(pers_bad_index0, i)
+  }
+  if(is.na(Counting_Dimensions(i)[2]) &  is.na(Counting_Dimensions(i)[3])){ #Check for files with no 0 dimensional features
+    pers_bad_index12 <- append(pers_bad_index12, i)
+  }
+  if(is.na(Counting_Dimensions(i)[2])){ #Check for files with no 1 dimensional features
+    pers_bad_index1 <- append(pers_bad_index1, i)
+  }
+  if(is.na(Counting_Dimensions(i)[3]) ){ #Check for files with no 2 dimensional features
+    pers_bad_index2 <- append(pers_bad_index2, i)
+  }
+}
+
+bad_files_dim1 <- c()
+bad_files_dim2 <- c()
+bad_files_dim12 <- c()
+
+bad_normal <- c()
+bad_af <- c()
+bad_r <- c()
+bad_o <- c()
+
+
+for(i in pers_bad_index2){
+  if(temp[i,2] == "N"){
+    bad_normal <- append(bad_normal, i)
+  }
+  if(temp[i,2] == "A"){
+    bad_af <- append(bad_af, i )
+  }
+  if(temp[i,2] == "~"){
+    bad_r <- append(bad_r, i)
+  }
+  if(temp[i,2] == "O"){
+    bad_o <- append(bad_o, i)
+  }
+}
+
+
+for(i in pers_bad_index1){
+  bad_files_dim1 <- append(bad_files_dim1, temp[i,2])
+}
+
+for(i in pers_bad_index2){
+  bad_files_dim2 <- append(bad_files_dim2, temp[i, 2])
+  
+}
+
+for(i in pers_bad_index12){
+  bad_files_dim12 <- append(bad_files_dim12, temp[i,2])
+}
+```
+
+#normal, af, r, o files
+```{r}
+normal_files <- c() 
+for(i in good_pers_index){
+  if(temp[i,2] == "N"){
+    normal_files <- append(normal_files, i)
+  }
+}
+
+af_files <- c()
+for(i in good_pers_index){
+  if(temp[i,2] == "A"){
+    af_files <- append(af_files, i)
+  }
+}
+
+r_files <- c()
+for(i in good_pers_index){
+  if(temp[i,2] == "~"){
+    r_files <- append(r_files, i)
+  }
+}
+
+o_files <- c() 
+for(i in good_pers_index){
+  if(temp[i,2] == "O"){
+    o_files <- append(o_files, i) 
+  } 
+}
+```
+
+##Compute_dim_births and Compute_dim_deaths
+Unimportant helper function.
+```{r} 
+compute_zeros_birth <- function(n,a){ #Returns a list of birth times of 0 dimension.
+  L <- c()
+  for(i in seq(a)){
+   L <- append(L , get(paste0("persistence", n))[i,2])
+  }
+  return(L)
+}
+compute_zeros_death <- function(n,a){ #Returns a list of death times of 0 dimension
+  L <- c()
+  for(i in seq(a)){
+   L <- append(L , get(paste0("persistence", n))[i,3])
+  }
+  return(L)
+}
+###############################  
+compute_ones_birth <- function(n,a,b){ #Returns a list of birth times of 1 dimension
+  L <- c()
+  for(i in seq(from=a+1, to=a+b)){
+   L <- append(L , get(paste0("persistence", n))[i,2])
+  }
+  return(L)
+}
+compute_ones_death <- function(n,a,b){
+  L <- c()
+  for(i in seq(from=a+1, to=a+b)){ #Returns a list of death times of 1 dimension.
+   L <- append(L , get(paste0("persistence", n))[i,3])
+  }
+  return(L)
+}
+#################
+compute_twos_birth <- function(n,a,b,c){ #Returns a list of birth times of 2 dimensions.
+  L <- c()
+  for(i in seq(from=a+b+1, to=a+b+c)){
+  L <- append(L , get(paste0("persistence", n))[i,2])
+  }
+  return(L)
+} 
+compute_twos_death <- function(n,a,b,c){ #Returns a list od death times of 2 dimensions.
+  L <- c()
+  for(i in seq(from=a+b+1, to=a+b+c)){
+  L <- append(L , get(paste0("persistence", n))[i,3])
+  }
+  return(L)
+} 
+```
+
+##Export the labels.
+```{R} 
+labels <- c()
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  labels <- append(labels, temp[i,1])
+} 
+
+classes <- c() 
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  classes <- append(classes, temp[i,2])
+}
+```
+
+##Extract_dim_biths and Extract_dim_deaths
+Extracts the zero, one and two dimensional birth and death features.
+```{r}
+Extract_Birth_Zeros <- function(n){ #n is desired dimension
+    p <- c() 
+    a <- Counting_Dimensions(n)[1]
+    #b <- Counting_Dimensions(n)[2]
+    #c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth variables.
+    assign(paste0("pers_", n, "_zeros_birth"), compute_zeros_birth(n,a))
+    p <- append(p, get(paste0("pers_", n, "_zeros_birth")))
+    return(p)
+}
+Extract_Death_Zeros <- function(n){ #n is desired dimension
+    p <- c()
+    a <- Counting_Dimensions(n)[1]
+    #b <- Counting_Dimensions(n)[2]
+    #c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth and death variables
+    assign(paste0("pers_", n, "_zeros_death"), compute_zeros_death(n,a))
+    p <- append(p, get(paste0("pers_", n, "_zeros_death")))
+    return(p)
+    # k <- 0
+    # assign(k, compute_zeros_death(n,a))
+    # return(k)
+}
+Extract_Birth_Ones <- function(n){ #n is desired dimension
+    p<- c()
+    a <- Counting_Dimensions(n)[1]
+    b <- Counting_Dimensions(n)[2]
+    #c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth and death variables.
+    assign(paste0("pers_", n, "_ones_birth"), compute_ones_birth(n,a,b)) 
+    p <- append(p, get(paste0("pers_", n, "_ones_birth")))
+    return(p)
+}
+Extract_Death_Ones <- function(n){ #n is desired dimension
+    p<- c()
+    a <- Counting_Dimensions(n)[1]
+    b <- Counting_Dimensions(n)[2]
+    #c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth and death variables.
+    assign(paste0("pers_", n, "_ones_death"), compute_ones_death(n,a,b)) 
+    p <- append(p, get(paste0("pers_", n, "_ones_death")))
+    return(p)
+}
+Extract_Birth_Twos <- function(n){ #n is desired dimension
+    p<-c()
+    a <- Counting_Dimensions(n)[1]
+    b <- Counting_Dimensions(n)[2]
+    c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth variables.
+    assign(paste0("pers_", n, "_twos_birth"), compute_twos_birth(n,a,b,c)) 
+    p <- append(p, get(paste0("pers_", n, "_twos_birth")))
+    return(p)    
+}
+Extract_Death_Twos <- function(n){ #n is desired dimension
+    p<-c()
+    a <- Counting_Dimensions(n)[1]
+    b <- Counting_Dimensions(n)[2]
+    c <- Counting_Dimensions(n)[3]
+    
+    #Assigns birth and death variables. 
+    assign(paste0("pers_", n, "_twos_death"), compute_twos_death(n,a,b,c)) 
+    p <- append(p, get(paste0("pers_", n, "_twos_death")))
+    return(p)     
+} 
+```
+
+##Store_birth_dim and Store_death_dim
+Stores the zero, one and two dimensional birth and death features of each persistence diagram in your global environment. You will have many, many variables in your environment.
+```{r}
+#####Clean function#####
+for(i in seq(from = pers_index_start, to = pers_index_end)){ 
+  if(i %in% good_pers_index){
+    assign(paste0("pers_", i, "_zeros_birth"), Extract_Birth_Zeros(i),envir=.GlobalEnv) 
+    assign(paste0("pers_", i, "_zeros_death"), Extract_Death_Zeros(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_ones_birth"), Extract_Birth_Ones(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_ones_death"), Extract_Death_Ones(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_twos_birth"), Extract_Birth_Twos(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_twos_death"), Extract_Death_Twos(i),envir=.GlobalEnv)
+  }
+  if(i %in% pers_bad_index1 & !(i %in%  pers_bad_index2)){#Has no 1 dimensional features, but 2 dimension features
+    assign(paste0("pers_", i, "_zeros_birth"), Extract_Birth_Zeros(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_zeros_death"), Extract_Death_Zeros(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_twos_birth"), Extract_Birth_Twos(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_twos_death"), Extract_Death_Twos(i),envir=.GlobalEnv)
+  }
+  if((i %in% pers_bad_index2)){#Has 1 dimensional features but no 2 dimensional features
+    print(i)
+    assign(paste0("pers_", i, "_zeros_birth"), Extract_Birth_Zeros(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_zeros_death"), Extract_Death_Zeros(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_ones_birth"), Extract_Birth_Ones(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_ones_death"), Extract_Death_Ones(i),envir=.GlobalEnv)    
+  }
+  if(i %in% pers_bad_index12){#Has no 1 or 2 dimensional features
+    assign(paste0("pers_", i, "_zeros_birth"), Extract_Birth_Zeros(i),envir=.GlobalEnv)
+    assign(paste0("pers_", i, "_zeros_death"), Extract_Death_Zeros(i),envir=.GlobalEnv)    
+  }
+}
+
+```
+
+##Calculate sum of lifetimes
+The lifetimes are summed across the dimensions per each persistence diagram.
+```{r} 
+#Lifetimes for d imension 0 
+lifetimes_dim0 <- c()
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  lifetime <- sum(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)])
+  lifetimes_dim0 <- append(lifetimes_dim0, lifetime)
+}
+
+#Lifetimes for dimension 1.
+lifetimes_dim1 <- c()
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  lifetime <- sum(get(paste0("pers_", i, "_ones_death"))) - sum(get((paste0("pers_", i, "_ones_birth"))))
+  lifetimes_dim1 <- append(lifetimes_dim1, lifetime)
+}
+
+#Lifetimes for dimension 2.
+lifetimes_dim2 <- c()
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  if(i %in% good_pers_index){
+    lifetime <- sum((get(paste0("pers_", i, "_twos_death")))) - sum(get((paste0("pers_", i, "_twos_birth"))))
+    lifetimes_dim2 <- append(lifetimes_dim2, lifetime)
+  }
+  
+  else{
+    lifetime <- 400
+    lifetimes_dim2 <- append(lifetimes_dim2, lifetime)
+  }
+}
+```
+
+##Oraganize lifetime data into a dataframe, export as CSV.
+```{r} 
+lifetimedata <- data.frame("Lifetime_dim0" = lifetimes_dim0, "Lifetime_dim1" = lifetimes_dim1, "Lifetime_dim2" = lifetimes_dim2)
+write.csv(lifetimedata, file = "6000_8528_Lifetimes_dim_0_1_2.csv")
+```
+
+##Caclulate maximum hole lifetimes
+Calculates the maximum lifetime of each feature across all dimensions per persistence diagram.
+```{r} 
+maxs_dim0 <- c()
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  hold_lifetimes <- c()
+  print(i)
+  for(j in seq(length(get(paste0("pers_", i, "_zeros_death"))))){
+    hold_lifetimes <- append(hold_lifetimes, (get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+    }
+ 
+   maxs_dim0 <- append(maxs_dim0, max(hold_lifetimes))
+} 
+
+maxs_dim1 <- c()
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  hold_lifetimes <- c()
+  print(i) 
+  for(j in seq(length(get(paste0("pers_", i, "_ones_death"))))){
+    hold_lifetimes <- append(hold_lifetimes, (get(paste0("pers_", i, "_ones_death"))[j] - get(paste0("pers_", i, "_ones_birth"))))
+    }
+ 
+   maxs_dim1 <- append(maxs_dim1, max(hold_lifetimes))
+}
+maxs_dim2 <- c()
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  if(i %in% good_pers_index){
+    hold_lifetimes <- c()
+    print(i)
+    for(j in seq(length(get(paste0("pers_", i, "_twos_death"))))){
+      hold_lifetimes <- append(hold_lifetimes, (get(paste0("pers_", i, "_twos_death"))[j] - get(paste0("pers_", i, "_twos_birth"))))
+    }
+    maxs_dim2 <- append(maxs_dim2, max(hold_lifetimes))
+  }
+  else{
+    maxs_dim2 <- append(maxs_dim2, 0)
+  }
+}
+```
+
+##Convert to dataframe, export as CSV.
+```{r} 
+max_lifetimes <- data.frame("Max_life_dim0" = maxs_dim0, "Max_life_dim1" = maxs_dim1, "Max_life_dim2" = maxs_dim2)
+write.csv(max_lifetimes, file = "6001_8000_Maximum_lifetimes_all_dims.csv")
+```
+
+##Standard deviation of lifetimes 
+```{r}
+#Sd of one dimensional lifetimes.
+sd_lifetimes_dim_1 <- c()
+sd_lifetimes_dim_2 <- c()
+
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  hold_lifetimes <- c()
+  pdiagram_death <- get(paste0("pers_", i, "_ones_death"))
+  pdiagram_birth <- get(paste0("pers_", i, "_ones_birth"))
+    for(j in seq(length(pdiagram_death))){
+      hold_lifetimes <- append(hold_lifetimes, (pdiagram_death[j]-pdiagram_birth[j]))
+    }
+    if(length(hold_lifetimes) > 1){
+      sd_lifetimes_dim_1 <- append(sd_lifetimes_dim_1, sd(hold_lifetimes))
+    }
+    else{
+      sd_lifetimes_dim_1 <- append(sd_lifetimes_dim_1, 100)
+    }
+}
+
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  if(i %in% good_pers_index){
+    hold_lifetimes <- c()
+    pdiagram_death <- get(paste0("pers_", i, "_twos_death"))
+    pdiagram_birth <- get(paste0("pers_", i, "_twos_birth"))
+      for(j in seq(length(pdiagram_death))){
+        hold_lifetimes <- append(hold_lifetimes, (pdiagram_death[j]-pdiagram_birth[j]))
+      }
+      if(length(hold_lifetimes) > 1){ 
+        sd_lifetimes_dim_2 <- append(sd_lifetimes_dim_2, sd(hold_lifetimes))
+      }
+      else{
+        sd_lifetimes_dim_2 <- append(sd_lifetimes_dim_2, 200)
+      }
+    }
+  else{
+    sd_lifetimes_dim_2 <- append(sd_lifetimes_dim_2, 0)
+  }
+}
+
+```
+
+#Export sd lifetimes
+```{R}
+sd_lifetimes_dim12 <- data.frame("sd_life_dim1" = sd_lifetimes_dim_1, "sd_life_dim2" = sd_lifetimes_dim_2)
+write.csv(sd_lifetimes_dim12, file = "6001_8528_sd_lifetimes_dim_1_2.csv")
+```
+#Calculate skewness and kurtosis of lifetimes.
+```{r}
+#Sd of one dimensional lifetimes.
+skew_lifetimes_dim_0 <- c()
+skew_lifetimes_dim_1 <- c()
+skew_lifetimes_dim_2 <- c()
+
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  if(length(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]) > 1){
+      skew_lifetimes_dim_0 <- append(skew_lifetimes_dim_0, skewness(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+    }
+    else{
+      skew_lifetimes_dim_0 <- append(skew_lifetimes_dim_0, 700)
+    }  
+  }
+
+
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  hold_skewness <- c()
+  pdiagram_death <- get(paste0("pers_", i, "_ones_death"))
+  pdiagram_birth <- get(paste0("pers_", i, "_ones_birth"))
+    for(j in seq(length(pdiagram_death))){
+      hold_skewness <- append(hold_skewness, (pdiagram_death[j]-pdiagram_birth[j]))
+    }
+    if(length(hold_skewness) > 1){
+      skew_lifetimes_dim_1 <- append(skew_lifetimes_dim_1, skewness(hold_skewness))
+    }
+    else{
+      skew_lifetimes_dim_1 <- append(skew_lifetimes_dim_1, 500)
+    }
+}
+
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  if(i %in% good_pers_index){
+    hold_skewness <- c()
+    pdiagram_death <- get(paste0("pers_", i, "_twos_death"))
+    pdiagram_birth <- get(paste0("pers_", i, "_twos_birth"))
+      for(j in seq(length(pdiagram_death))){
+        hold_skewness <- append(hold_skewness, (pdiagram_death[j]-pdiagram_birth[j]))
+      }
+      if(length(hold_skewness) > 1){ 
+        skew_lifetimes_dim_2 <- append(skew_lifetimes_dim_2, skewness(hold_skewness))
+      }
+      else{
+        skew_lifetimes_dim_2 <- append(skew_lifetimes_dim_2, 500)
+      }
+    }
+  else{
+    skew_lifetimes_dim_2 <- append(skew_lifetimes_dim_2, 0)
+  }
+}
+```
+##Export the skewness
+```{R}
+skew_lifetimes_dim12 <- data.frame("skew_life_dim0" = skew_lifetimes_dim_0, "skew_life_dim1" = skew_lifetimes_dim_1, "skew_life_dim2" = skew_lifetimes_dim_2)
+write.csv(skew_lifetimes_dim12, file = "6001_8528_skew_lifetimes_dim_1_2.csv")
+```
+
+
+#Calculate kurtosis.
+```{r}
+#Sd of one dimensional lifetimes.
+kurt_lifetimes_dim_0 <- c()
+kurt_lifetimes_dim_1 <- c()
+kurt_lifetimes_dim_2 <- c()
+
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  if(length(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]) > 1){
+      kurt_lifetimes_dim_0 <- append(kurt_lifetimes_dim_0, kurtosis(get(paste0("pers_", i, "_zeros_death"))[1:(length(get(paste0("pers_", i, "_zeros_death")))-1)]))
+    }
+    else{
+      kurt_lifetimes_dim_0 <- append(kurt_lifetimes_dim_0, 900)
+    }  
+  }
+
+
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  hold_kurtosis <- c()
+  pdiagram_death <- get(paste0("pers_", i, "_ones_death"))
+  pdiagram_birth <- get(paste0("pers_", i, "_ones_birth"))
+    for(j in seq(length(pdiagram_death))){
+      hold_kurtosis <- append(hold_kurtosis, (pdiagram_death[j]-pdiagram_birth[j]))
+    }
+    if(length(hold_kurtosis) > 1){
+      kurt_lifetimes_dim_1 <- append(kurt_lifetimes_dim_1, kurtosis(hold_kurtosis))
+    }
+    else{
+      kurt_lifetimes_dim_1 <- append(kurt_lifetimes_dim_1, 700)
+    }
+}
+
+for(i in seq(from = pers_index_start, to = pers_index_end)){
+  if(i %in% good_pers_index){
+    hold_kurtosis <- c()
+    pdiagram_death <- get(paste0("pers_", i, "_twos_death"))
+    pdiagram_birth <- get(paste0("pers_", i, "_twos_birth"))
+      for(j in seq(length(pdiagram_death))){
+        hold_kurtosis <- append(hold_kurtosis, (pdiagram_death[j]-pdiagram_birth[j]))
+      }
+      if(length(hold_kurtosis) > 1){ 
+        kurt_lifetimes_dim_2 <- append(kurt_lifetimes_dim_2, kurtosis(hold_kurtosis))
+      }
+      else{
+        kurt_lifetimes_dim_2 <- append(kurt_lifetimes_dim_2, 800)
+      }
+    }
+  else{
+    kurt_lifetimes_dim_2 <- append(kurt_lifetimes_dim_2, 0)
+  }
+}
+```
+
+```{R}
+kurt_lifetimes_dim12 <- data.frame("kurt_life_dim0" = kurt_lifetimes_dim_0, "kurt_life_dim1" = kurt_lifetimes_dim_1, "kurt_life_dim2" = kurt_lifetimes_dim_2)
+write.csv(kurt_lifetimes_dim12, file = "6001_8528_kurt_lifetimes_dim_1_2.csv")
+```
